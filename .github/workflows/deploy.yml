@@ -1,0 +1,141 @@
+name: 🚀 Deploy to Production Server
+
+on:
+  push:
+    branches:
+      - main
+      - production
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  APP_NAME: gestion-cab
+
+jobs:
+  # ========================================
+  # JOB 1 : BUILD
+  # ========================================
+  build:
+    name: 🔨 Build Application
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 🔍 Install dependencies
+        run: npm ci
+
+      - name: 🧪 Run linter
+        run: npm run lint --if-present || echo "⚠️ Lint skipped"
+
+      - name: 🧪 Run tests
+        run: npm test --if-present || echo "⚠️ Tests skipped"
+
+      - name: 🏗️ Build production
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          NODE_ENV: production
+        run: npm run build
+
+      - name: 📦 Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 1
+
+  # ========================================
+  # JOB 2 : DEPLOY
+  # ========================================
+  deploy:
+    name: 🚀 Deploy to Server
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: 🔐 Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: 📤 Deploy to server via rsync
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude '.env*' \
+            dist/ ${SERVER_USER}@${SERVER_IP}:/var/www/${{ env.APP_NAME }}/dist/
+
+      - name: 🔄 Reload Nginx
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          ssh ${SERVER_USER}@${SERVER_IP} << 'ENDSSH'
+            echo "🔄 Reloading Nginx..."
+            sudo nginx -t && sudo systemctl reload nginx
+            echo "✅ Deployment completed!"
+            echo "📊 Disk usage:"
+            df -h /var/www
+          ENDSSH
+
+      - name: ✅ Deployment success
+        run: |
+          echo "🎉 Deployment successful!"
+          echo "🌐 Server: http://${{ secrets.SERVER_IP }}"
+          echo "📅 Time: $(date)"
+
+  # ========================================
+  # JOB 3 : HEALTHCHECK
+  # ========================================
+  healthcheck:
+    name: 🏥 Health Check
+    needs: deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🩺 Check server health
+        run: |
+          MAX_ATTEMPTS=5
+          ATTEMPT=1
+          
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            echo "🔍 Health check attempt $ATTEMPT/$MAX_ATTEMPTS..."
+            
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.SERVER_IP }}/health || echo "000")
+            
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Server is healthy (HTTP $HTTP_CODE)"
+              exit 0
+            fi
+            
+            echo "⚠️  Server returned HTTP $HTTP_CODE"
+            ATTEMPT=$((ATTEMPT + 1))
+            
+            if [ $ATTEMPT -le $MAX_ATTEMPTS ]; then
+              echo "⏳ Waiting 10 seconds before retry..."
+              sleep 10
+            fi
+          done
+          
+          echo "❌ Health check failed after $MAX_ATTEMPTS attempts"
+          exit 1

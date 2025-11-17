@@ -1,0 +1,57 @@
+# Configuration Nginx - Gestion Cabinet
+# Fichier : /etc/nginx/sites-available/gestion-cab
+
+server {
+    listen 80;
+    listen [::]:80;
+    
+    # Remplacer par votre nom de domaine
+    server_name 82.25.116.122;
+    
+    # Racine du site (build Vite)
+    root /var/www/gestion-cab/dist;
+    index index.html;
+
+    # Logs
+    access_log /var/www/gestion-cab/logs/nginx-access.log;
+    error_log /var/www/gestion-cab/logs/nginx-error.log;
+
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+
+    # Sécurité headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Cache statique (CSS, JS, images)
+    location ~* \.(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Route principale - SPA (Single Page Application)
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Santé du serveur
+    location /health {
+        access_log off;
+        return 200 "OK\n";
+        add_header Content-Type text/plain;
+    }
+
+    # Bloquer accès aux fichiers sensibles
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    # Limite taille upload (50 Mo)
+    client_max_body_size 50M;
+}
