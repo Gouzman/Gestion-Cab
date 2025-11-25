@@ -43,11 +43,22 @@ const AdminAccountCreator = ({ onAccountCreated }) => {
           .insert([adminData]);
 
         if (insertError) {
+        const duplicateEmail =
+          insertError?.message?.includes("duplicate key value") ||
+          insertError?.message?.includes("profiles_email_key") ||
+         insertError?.code === "23505";
+
+      if (duplicateEmail) {
+         setStatus('exists');
+         setMessage('Le compte administrateur existe déjà.');
+         return;
+        }
+
           console.error('Erreur lors de la création:', insertError);
           setStatus('error');
           setMessage('Erreur lors de la création du compte administrateur.');
-          return;
-        }
+           return;
+          }
 
         // Créer également quelques utilisateurs de test pour démonstration
         const testUsers = [
