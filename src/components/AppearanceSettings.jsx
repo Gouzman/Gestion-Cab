@@ -8,7 +8,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Palette, Sun, Moon, Monitor, Save, Check } from 'lucide-react';
+import { Palette, Sun, Moon, Monitor, Save, Check, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 

@@ -38,22 +38,26 @@ import React, { useState, useEffect, useCallback } from 'react';
         };
 
         const fetchEvents = async () => {
-          let query = supabase.from('events').select('*');
+          let query = supabase.from('calendar_events').select('*');
           const { data, error } = await query;
           if (error) {
             toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger les événements." });
             return [];
           }
           
-          // Afficher tous les événements pour l'instant car les colonnes de visibilité n'existent pas encore
-          const userVisibleEvents = data;
+          // Filtrer les événements visibles par l'utilisateur
+          const userVisibleEvents = data.filter(e => 
+            e.created_by === currentUser.id || 
+            (e.attendees && e.attendees.includes(currentUser.id)) ||
+            isAdmin
+          );
 
-          // Utiliser start_date pour l'affichage temporel
+          // Utiliser start_time pour l'affichage temporel
           return userVisibleEvents.map(e => ({ 
             ...e, 
             type: 'event', 
-            deadline: e.start_date, 
-            display_time: e.start_date 
+            deadline: e.start_time, 
+            display_time: e.start_time 
           }));
         };
 

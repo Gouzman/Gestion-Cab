@@ -43,21 +43,11 @@ const CaseManager = ({ currentUser }) => {
   };
 
   const handleAddCase = async (caseData) => {
-    // Nettoyer le payload avant l'insertion en supprimant les champs qui n'existent pas dans le schéma Supabase
+    // Préparer le payload avec tous les champs disponibles
     const payload = { ...caseData };
     
-    // Supprimer les champs qui n'existent pas dans le schéma Supabase
-    delete payload.id; // Laisser Supabase générer l'UUID automatiquement
-    delete payload.notes;
-    delete payload.honoraire;
-    delete payload.expectedEndDate;
-    delete payload.attachments;
-    delete payload.client;
-    delete payload.created_by;
-    delete payload.opposing_party;
-    delete payload.startDate;
-    delete payload.timeSpent;
-    delete payload.visible_to;
+    // Supprimer uniquement l'id pour laisser Supabase le générer
+    delete payload.id;
     
     // Corriger les champs numériques NaN
     for (const key in payload) {
@@ -81,21 +71,11 @@ const CaseManager = ({ currentUser }) => {
   };
 
   const handleEditCase = async (caseData) => {
-    // Nettoyer le payload avant la modification en supprimant les champs qui n'existent pas dans le schéma Supabase
+    // Préparer le payload avec tous les champs disponibles
     const payload = { ...caseData };
     
-    // Supprimer les champs qui n'existent pas dans le schéma Supabase
+    // Supprimer uniquement l'id (ne pas le mettre à jour)
     delete payload.id;
-    delete payload.notes;
-    delete payload.honoraire;
-    delete payload.expectedEndDate;
-    delete payload.attachments;
-    delete payload.client;
-    delete payload.created_by;
-    delete payload.opposing_party;
-    delete payload.startDate;
-    delete payload.timeSpent;
-    delete payload.visible_to;
     
     // Corriger les champs numériques NaN
     for (const key in payload) {

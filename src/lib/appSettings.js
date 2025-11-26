@@ -97,6 +97,39 @@ export const getAppSettings = async () => {
  */
 export const updateAppSettings = async (updates) => {
   try {
+    // Vérifier si l'enregistrement existe
+    const { data: existingData, error: checkError } = await supabase
+      .from('app_settings')
+      .select('id')
+      .eq('id', 1)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Erreur lors de la vérification des paramètres:', checkError);
+      return { success: false, error: checkError };
+    }
+
+    // Si l'enregistrement n'existe pas, le créer avec les valeurs par défaut + updates
+    if (!existingData) {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .insert({
+          id: 1,
+          ...DEFAULT_SETTINGS,
+          ...updates
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erreur lors de la création des paramètres:', error);
+        return { success: false, error };
+      }
+
+      return { success: true, data };
+    }
+
+    // Sinon, mettre à jour l'enregistrement existant
     const { data, error } = await supabase
       .from('app_settings')
       .update(updates)

@@ -16,6 +16,9 @@
 -- Cette fonction contourne les restrictions RLS de la clé 'anon'
 -- en s'exécutant avec les privilèges du propriétaire de la base (SECURITY DEFINER)
 
+-- Supprimer la fonction existante si elle existe
+DROP FUNCTION IF EXISTS public.create_attachments_bucket();
+
 CREATE OR REPLACE FUNCTION public.create_attachments_bucket()
 RETURNS jsonb
 LANGUAGE plpgsql

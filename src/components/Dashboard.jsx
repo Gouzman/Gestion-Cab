@@ -79,7 +79,6 @@ const Dashboard = ({ currentUser, setActiveView }) => {
         supabase.from('alerts').select('*').order('created_at', { ascending: false }).limit(5)
       ]);
 
-      // Désactivé temporairement car la colonne amount/total_amount n'existe pas encore dans invoices
       const invoicesData = [];
 
       if (tasksError || clientsError || casesError || alertsError) {

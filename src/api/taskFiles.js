@@ -168,7 +168,6 @@ export async function addTaskFile(taskId, fileName, fileUrl, fileSize = null, fi
  * @returns {Promise<Object>} Résultat de la suppression
  */
 export async function deleteTaskFile(fileId) {
-  // TEMPORAIRE : Désactiver la suppression jusqu'à création de la table
   console.warn('deleteTaskFile désactivé : table tasks_files non créée');
   return { 
     success: false, 

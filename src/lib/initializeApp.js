@@ -91,8 +91,6 @@ async function fixTasksFilesRLS() {
  * Vérifie que la table tasks_files existe et est accessible (silencieux)
  */
 async function ensureTasksFilesTable() {
-  // Désactiver temporairement - la table n'existe pas encore
-  // Le système utilise le fallback sur attachments automatiquement
   return false;
 }
 
@@ -100,7 +98,6 @@ async function ensureTasksFilesTable() {
  * Recharge le cache du schéma Supabase de manière propre (silencieux)
  */
 async function refreshSupabaseCache() {
-  // Désactiver temporairement - la fonction n'existe pas encore
   return false;
 }
 
@@ -138,7 +135,7 @@ export async function diagnoseInfrastructure() {
     // 2. Table tasks
     report.database.tasks_table = healthCheck !== undefined;
     
-    // 3. Table tasks_files (désactivé temporairement)
+    // 3. Table tasks_files
     report.database.tasks_files_table = false;
     
     // 4. Storage

@@ -25,6 +25,12 @@ ON password_reset_requests(status);
 -- 4. Activer RLS (Row Level Security)
 ALTER TABLE password_reset_requests ENABLE ROW LEVEL SECURITY;
 
+-- Supprimer les anciennes policies si elles existent
+DROP POLICY IF EXISTS "Users can view their own reset requests" ON password_reset_requests;
+DROP POLICY IF EXISTS "Users can create their own reset requests" ON password_reset_requests;
+DROP POLICY IF EXISTS "Admins can view all reset requests" ON password_reset_requests;
+DROP POLICY IF EXISTS "Admins can update reset requests" ON password_reset_requests;
+
 -- 5. Politique : Les utilisateurs peuvent voir leurs propres demandes
 CREATE POLICY "Users can view their own reset requests"
   ON password_reset_requests

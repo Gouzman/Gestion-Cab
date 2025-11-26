@@ -57,19 +57,36 @@ const Reports = ({ currentUser }) => {
         }
         const team = (teamData || []).filter(member => member.role !== 'admin');
         
-        const mockInvoices = [
-          { id: 1, invoiceNumber: 'FACT-2025-001', clientName: 'Société Alpha', caseId: 'D-001', totalTTC: 1770000, date: '2025-09-15', payment: { provision: true, provisionAmount: 1770000 } },
-          { id: 2, invoiceNumber: 'FACT-2025-002', clientName: 'Monsieur Beta', caseId: 'D-002', totalTTC: 590000, date: '2025-09-20', payment: { provision: true, provisionAmount: 200000 } },
-          { id: 3, invoiceNumber: 'FACT-2025-003', clientName: 'Entreprise Gamma', caseId: 'D-003', totalTTC: 885000, date: '2025-08-10', payment: { provision: false, provisionAmount: 0 } },
-          { id: 4, invoiceNumber: 'FACT-2025-004', clientName: 'Société Alpha', caseId: 'D-004', totalTTC: 2500000, date: '2025-06-01', payment: { provision: true, provisionAmount: 2500000 } },
-          { id: 5, invoiceNumber: 'FACT-2025-005', clientName: 'Particulier Delta', caseId: 'D-005', totalTTC: 350000, date: '2025-02-15', payment: { provision: true, provisionAmount: 350000 } },
-        ];
+        // Récupérer les vraies factures depuis Supabase
+        const { data: invoicesData, error: invoicesError } = await supabase.from('invoices').select('*');
+        if (invoicesError) {
+          console.error('Erreur lors de la récupération des factures:', invoicesError);
+          toast({
+            variant: "destructive", 
+            title: "Erreur", 
+            description: "Impossible de charger les factures."
+          });
+        }
+        
+        // Mapper les factures au format attendu par les rapports
+        const invoices = (invoicesData || []).map(inv => ({
+          id: inv.id,
+          invoiceNumber: inv.invoice_number,
+          clientName: inv.client_name,
+          caseId: inv.case_id,
+          totalTTC: inv.total_ttc || 0,
+          date: inv.date || inv.created_at,
+          payment: {
+            provision: inv.provision || false,
+            provisionAmount: inv.provision_amount || 0
+          }
+        }));
         
         setData({ 
           tasks: tasks || [], 
           cases: cases || [], 
           team: team || [], 
-          invoices: mockInvoices 
+          invoices: invoices 
         });
       } catch (error) {
         console.error('Erreur générale lors de la récupération des données:', error);

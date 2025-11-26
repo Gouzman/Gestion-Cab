@@ -189,8 +189,6 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
   };
 
   const handleDownload = async (filePath) => {
-    // TEMPORAIRE : Désactiver le téléchargement jusqu'à ce que le bucket 'attachments' soit créé
-    // Pour réactiver : supprimer ce toast et décommenter le code dans le fichier git history
     toast({ 
       variant: "destructive", 
       title: "Bucket non configuré", 

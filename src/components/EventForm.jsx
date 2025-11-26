@@ -103,25 +103,28 @@ const EventForm = ({ currentUser, onCancel, onEventCreated }) => {
 
     // Construire un objet avec les données étendues pour les nouveaux champs
     const extendedData = {
-      attendees: formData.attendees,
       location: formData.location,
       linked_cases: formData.linked_cases,
       linked_files: formData.linked_files,
     };
 
-    // Nettoyer le payload avant l'insertion en utilisant les champs qui existent dans le schéma Supabase
+    // Préparer le payload avec les champs de calendar_events
     const payload = {
       title: formData.title,
       description: formData.description,
-      start_date: formData.startTime,
-      // Stocker les nouveaux champs dans metadata JSON si les colonnes n'existent pas
+      start_time: formData.startTime,
+      attendees: formData.attendees,
+      // Stocker les champs étendus dans metadata JSON
       metadata: extendedData,
     };
+
+    // Ajouter created_by au payload
+    payload.created_by = currentUser.id;
 
     // Log pour debug
     console.log("Payload événement envoyé à Supabase :", payload);
 
-    const { error } = await supabase.from('events').insert([payload]);
+    const { error } = await supabase.from('calendar_events').insert([payload]);
 
     if (error) {
       console.error('Erreur création événement:', error);

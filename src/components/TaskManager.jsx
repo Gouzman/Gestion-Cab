@@ -102,8 +102,8 @@ const TaskManager = ({ currentUser }) => {
   };
 
   const fetchTasks = async () => {
-    // Sélectionner explicitement les colonnes existantes pour éviter les erreurs avec colonnes manquantes
-    const selectColumns = 'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at';
+    // Sélectionner toutes les colonnes y compris les nouvelles
+    const selectColumns = 'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment';
     let query = supabase.from('tasks').select(selectColumns);
     if (!isAdmin && currentUser?.id) {
       query = query.eq('assigned_to_id', currentUser.id);
@@ -266,8 +266,6 @@ const TaskManager = ({ currentUser }) => {
       
       const validUrl = publicUrlData?.publicUrl || filePath;
 
-      // TEMPORAIRE : Désactiver l'enregistrement dans tasks_files jusqu'à création de la table
-      // Pour réactiver : restaurer le code depuis git history
       console.log('Table tasks_files désactivée - fichier uploadé mais non enregistré dans BDD');
       toast({ 
         title: "✅ Scan uploadé", 
@@ -309,20 +307,17 @@ const TaskManager = ({ currentUser }) => {
     const { filesToUpload, scannedFiles, data: dataToInsert } = processTaskData(taskData);
     const assignedMember = teamMembers.find(m => m.id === dataToInsert.assigned_to_id);
     
-    // Supprimer les colonnes associated_tasks et main_category si elles n'existent pas dans le schéma
-    const { associated_tasks, main_category, ...cleanDataToInsert } = dataToInsert;
-    
-    // Nettoyer le payload pour supprimer les champs qui n'existent pas dans le schéma Supabase
+    // Préparer le payload avec tous les champs
     const payload = { 
-      ...cleanDataToInsert, 
+      ...dataToInsert, 
       assigned_to_name: assignedMember ? assignedMember.name : null,
-      assigned_at: cleanDataToInsert.assigned_to_id ? new Date().toISOString() : null,
+      assigned_at: dataToInsert.assigned_to_id ? new Date().toISOString() : null,
       created_by_id: currentUser.id,
       created_by_name: currentUser.name
     };
     
-    // Supprimer les champs qui n'existent pas dans le schéma Supabase et nettoyer
-    const { attachments, ...cleanPayload } = payload;
+    // Supprimer uniquement attachments (géré séparément)
+    const { attachments, associated_tasks, ...cleanPayload } = payload;
     
     // Nettoyer les champs vides pour éviter les erreurs de validation
     for (const key of Object.keys(cleanPayload)) {
@@ -331,7 +326,7 @@ const TaskManager = ({ currentUser }) => {
       }
     }
     
-    const { data, error } = await supabase.from('tasks').insert([payload]).select('id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,created_at,updated_at,created_by_id,created_by_name,assigned_at').single();
+    const { data, error } = await supabase.from('tasks').insert([cleanPayload]).select('id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment').single();
     
     if (error) {
       toast({ variant: "destructive", title: "Erreur", description: `Impossible de créer la tâche: ${error.message}` });
@@ -507,13 +502,13 @@ const TaskManager = ({ currentUser }) => {
 
     if (editingTask.assigned_to_id !== dataToUpdate.assigned_to_id && dataToUpdate.assigned_to_id) {
       dataToUpdate.assigned_at = new Date().toISOString();
-      // Note: seen_at remise à null ignorée car colonne non disponible dans le schéma
+      dataToUpdate.seen_at = null; // Réinitialiser seen_at lors d'une réassignation
     } else if (!dataToUpdate.assigned_to_id) {
       dataToUpdate.assigned_at = null;
     }
 
-    // Supprimer les colonnes qui n'existent pas dans le schéma Supabase
-    const { associated_tasks, main_category, attachments, ...cleanDataToUpdate } = dataToUpdate;
+    // Supprimer uniquement les colonnes qui n'existent vraiment pas
+    const { associated_tasks, attachments, ...cleanDataToUpdate } = dataToUpdate;
     
     // Nettoyer le payload pour supprimer les champs qui n'existent pas dans le schéma Supabase
     const updatePayload = { 
@@ -528,7 +523,7 @@ const TaskManager = ({ currentUser }) => {
       }
     }
 
-    const { data, error } = await supabase.from('tasks').update(updatePayload).eq('id', editingTask.id).select('id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,created_at,updated_at,created_by_id,created_by_name,assigned_at').single();
+    const { data, error } = await supabase.from('tasks').update(updatePayload).eq('id', editingTask.id).select('id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment').single();
     
     if (error) {
       toast({ variant: "destructive", title: "Erreur", description: `Impossible de modifier la tâche: ${error.message}` });
@@ -585,17 +580,20 @@ const TaskManager = ({ currentUser }) => {
       setTaskToComment(taskId);
     } else {
       let updatePayload = { status: newStatus };
-      // Note: Logique seen_at désactivée car colonne non disponible dans le schéma
+      // Marquer comme vue si le statut passe de 'pending' à autre chose
+      if (newStatus === 'seen' || newStatus === 'in-progress') {
+        updatePayload.seen_at = new Date().toISOString();
+      }
       updateTaskStatus(taskId, updatePayload, null, isSilent);
     }
   };
 
   const updateTaskStatus = async (taskId, updatePayload, comment = null, isSilent = false) => {
-    // Note: completion_comment ignoré car colonne non disponible dans le schéma
-    // if (comment !== null) {
-    //   updatePayload.completion_comment = comment;
-    // }
-    const { data, error } = await supabase.from('tasks').update(updatePayload).eq('id', taskId).select('id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at');
+    // Ajouter le commentaire de clôture si fourni
+    if (comment !== null) {
+      updatePayload.completion_comment = comment;
+    }
+    const { data, error } = await supabase.from('tasks').update(updatePayload).eq('id', taskId).select('id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment');
     if (error) {
       if (!isSilent) {
         toast({ variant: "destructive", title: "Erreur", description: "Impossible de changer le statut." });
