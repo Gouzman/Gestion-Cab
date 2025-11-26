@@ -15,8 +15,10 @@ import {
   Receipt
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useCompanyInfo } from '@/lib/appSettings';
 
 const Sidebar = ({ activeView, setActiveView, currentUser, onLogout }) => {
+  const { companyInfo } = useCompanyInfo();
   const isAssocieOrAdmin = currentUser && (currentUser.function === 'Associe Emerite' || (currentUser.role && currentUser.role.toLowerCase() === 'admin'));
   const isGerant = currentUser && currentUser.function === 'Gerant';
   const isSuperUser = isAssocieOrAdmin || isGerant;
@@ -49,12 +51,20 @@ const Sidebar = ({ activeView, setActiveView, currentUser, onLogout }) => {
     >
       <div className="p-6">
         <div className="flex items-center gap-3 mb-8">
-          <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg">
-            <Scale className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-white">Tâche Cabinet</h1>
-            <p className="text-sm text-slate-400">SCPA KERE-ASSOCIES</p>
+          {companyInfo?.logo_url ? (
+            <div className="bg-white/10 p-2 rounded-lg flex-shrink-0">
+              <img src={companyInfo.logo_url} alt="Logo" className="h-10 w-10 object-contain rounded-lg" />
+            </div>
+          ) : (
+            <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex-shrink-0">
+              <Scale className="w-6 h-6 text-white" />
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-bold text-white truncate">
+              {companyInfo?.name || 'Cabinet Juridique'}
+            </h1>
+            <p className="text-xs text-slate-400 truncate">LEGALSUITE</p>
           </div>
         </div>
       </div>

@@ -15,8 +15,10 @@ import React, { useState, useEffect } from 'react';
     import DocumentManager from '@/components/DocumentManager';
     import Settings from '@/components/Settings';
     import BillingManager from '@/components/BillingManager';
+    import SessionExpiryModal from '@/components/SessionExpiryModal';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { initializeAppInfrastructure } from '@/lib/initializeApp';
+    import useAutoLogout from '@/hooks/useAutoLogout';
     import { Loader2 } from 'lucide-react';
 
     function App() {
@@ -24,6 +26,15 @@ import React, { useState, useEffect } from 'react';
       const [infrastructureReady, setInfrastructureReady] = useState(false);
       const { user, loading, signOut } = useAuth();
       const { toast } = useToast();
+      
+      // Récupérer le délai configuré
+      const autoLogoutMinutes = parseInt(localStorage.getItem('app_auto_logout_minutes') || '15');
+      
+      // Système d'auto-logout (actif uniquement quand l'utilisateur est connecté)
+      const { showWarning, remainingSeconds, extendSession, forceLogout } = useAutoLogout(
+        user ? signOut : null,
+        autoLogoutMinutes
+      );
 
       // Initialiser l'infrastructure au premier chargement avec un utilisateur connecté
       useEffect(() => {
@@ -100,8 +111,8 @@ import React, { useState, useEffect } from 'react';
       return (
         <HelmetProvider>
           <Helmet>
-            <title>LegalTask Pro - Cabinet d'Avocat</title>
-            <meta name="description" content="Plateforme de gestion des tâches professionnelle pour cabinets d'avocats. Gérez vos dossiers, clients et échéances efficacement." />
+            <title>LEGALSUITE - Gestion de Cabinet Juridique</title>
+            <meta name="description" content="LEGALSUITE - Solution complète de gestion pour cabinets d'avocats. Gérez vos dossiers, clients, tâches, facturation et collaborateurs efficacement." />
           </Helmet>
           
           <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 print:bg-white">
@@ -127,6 +138,14 @@ import React, { useState, useEffect } from 'react';
             </div>
             
             <Toaster />
+            
+            {/* Modal de déconnexion automatique */}
+            <SessionExpiryModal
+              isOpen={showWarning && !!user}
+              remainingSeconds={remainingSeconds}
+              onExtend={extendSession}
+              onLogout={forceLogout}
+            />
           </div>
         </HelmetProvider>
       );

@@ -18,11 +18,14 @@ import React, { useState, useEffect } from 'react';
 
     const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
   const [formData, setFormData] = useState({
-    id: '',
+    case_reference: '',
     title: '',
+    client_id: '',
+    client_type: 'particulier',
     client: '',
     opposing_party: '',
     description: '',
+    case_type: 'civil',
     type: 'civil',
     status: 'en-cours',
     priority: 'medium',
@@ -32,16 +35,17 @@ import React, { useState, useEffect } from 'react';
     timeSpent: 0,
     notes: '',
     attachments: [],
-    visible_to: []
+    authorized_users: []
   });
-  const [collaborators, setCollaborators] = useState([]);
-  const [teamMembers, setTeamMembers] = useState([]);      useEffect(() => {
+  const [teamMembers, setTeamMembers] = useState([]);
+  
+  useEffect(() => {
         const fetchCollaborators = async () => {
           const { data, error } = await supabase.from('profiles').select('id, name, role');
           // Filtrer pour exclure les comptes admin
           const filteredData = (data || []).filter(member => member.role !== 'admin');
           if (error) {
-            toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger les collaborateurs." });
+            toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger les membres de l'équipe." });
           } else {
             setTeamMembers(filteredData.filter(m => m.id !== currentUser.id));
           }
@@ -52,11 +56,14 @@ import React, { useState, useEffect } from 'react';
       useEffect(() => {
         if (caseData) {
           setFormData({
-            id: caseData.id || '',
+            case_reference: caseData.case_reference || '',
             title: caseData.title || '',
+            client_id: caseData.client_id || '',
+            client_type: caseData.client_type || 'particulier',
             client: caseData.client || '',
             opposing_party: caseData.opposing_party || '',
             description: caseData.description || '',
+            case_type: caseData.case_type || caseData.type || 'civil',
             type: caseData.type || 'civil',
             status: caseData.status || 'en-cours',
             priority: caseData.priority || 'medium',
@@ -66,7 +73,7 @@ import React, { useState, useEffect } from 'react';
             timeSpent: caseData.timeSpent || 0,
             notes: caseData.notes || '',
             attachments: caseData.attachments || [],
-            visible_to: caseData.visible_to || []
+            authorized_users: caseData.authorized_users || caseData.visible_to || []
           });
         }
       }, [caseData]);
@@ -93,10 +100,10 @@ import React, { useState, useEffect } from 'react';
 
       const handleVisibilityToggle = (collaboratorId) => {
         setFormData(prev => {
-          const visible_to = prev.visible_to.includes(collaboratorId)
-            ? prev.visible_to.filter(id => id !== collaboratorId)
-            : [...prev.visible_to, collaboratorId];
-          return { ...prev, visible_to };
+          const authorized_users = prev.authorized_users.includes(collaboratorId)
+            ? prev.authorized_users.filter(id => id !== collaboratorId)
+            : [...prev.authorized_users, collaboratorId];
+          return { ...prev, authorized_users };
         });
       };
 
@@ -161,22 +168,23 @@ import React, { useState, useEffect } from 'react';
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {caseData && (
-                <div>
-                  <label htmlFor="case-id" className="block text-sm font-medium text-slate-300 mb-2">
-                    ID du Dossier
-                  </label>
-                  <input
-                    type="text"
-                    id="case-id"
-                    name="id"
-                    value={formData.id}
-                    disabled
-                    className="w-full px-4 py-3 bg-slate-600/50 border border-slate-600 rounded-lg text-slate-300 cursor-not-allowed"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">L'ID est généré automatiquement par le système</p>
-                </div>
-              )}
+              <div>
+                <label htmlFor="case-reference" className="block text-sm font-medium text-slate-300 mb-2">
+                  <FileText className="w-4 h-4 inline mr-2" />
+                  Réf dossier *
+                </label>
+                <input
+                  type="text"
+                  id="case-reference"
+                  name="case_reference"
+                  value={formData.case_reference}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Ex: CLI-2024-001, CAB-23/FIN, etc."
+                />
+                <p className="text-xs text-slate-500 mt-1">Saisissez votre propre nomenclature de référence</p>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -194,11 +202,81 @@ import React, { useState, useEffect } from 'react';
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Type de dossier *
+                </label>
+                <select
+                  name="case_type"
+                  value={formData.case_type}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="civil">Droit Civil</option>
+                  <option value="commercial">Droit Commercial</option>
+                  <option value="penal">Droit Pénal</option>
+                  <option value="family">Droit de la Famille</option>
+                  <option value="labor">Droit du Travail</option>
+                  <option value="real-estate">Droit Immobilier</option>
+                  <option value="intellectual">Propriété Intellectuelle</option>
+                  <option value="administrative">Droit Administratif</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="client-id" className="block text-sm font-medium text-slate-300 mb-2">
+                  <User className="w-4 h-4 inline mr-2" />
+                  Id Client *
+                </label>
+                <input
+                  type="text"
+                  id="client-id"
+                  name="client_id"
+                  value={formData.client_id}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Ex: CLI-001, ENT-2024-15, etc."
+                />
+                <p className="text-xs text-slate-500 mt-1">Identifiant unique du client (nomenclature personnalisée)</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Type de client *
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="client_type"
+                      value="particulier"
+                      checked={formData.client_type === 'particulier'}
+                      onChange={handleChange}
+                      className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-slate-300">Particulier</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="client_type"
+                      value="entreprise"
+                      checked={formData.client_type === 'entreprise'}
+                      onChange={handleChange}
+                      className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-slate-300">Entreprise</span>
+                  </label>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
                     <User className="w-4 h-4 inline mr-2" />
-                    Client
+                    {formData.client_type === 'particulier' ? 'Nom complet du client' : 'Raison sociale'}
                   </label>
                   <input
                     type="text"
@@ -206,7 +284,7 @@ import React, { useState, useEffect } from 'react';
                     value={formData.client}
                     onChange={handleChange}
                     className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Nom du client"
+                    placeholder={formData.client_type === 'particulier' ? 'Ex: Jean Martin' : 'Ex: Société ABC SARL'}
                   />
                 </div>
                 <div>
@@ -240,22 +318,6 @@ import React, { useState, useEffect } from 'react';
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Type de droit
-                  </label>
-                  <select
-                    name="type"
-                    value={formData.type}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {caseTypes.map(type => (
-                      <option key={type.value} value={type.value}>{type.label}</option>
-                    ))}
-                  </select>
-                </div>
-
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
                     Statut
@@ -363,25 +425,25 @@ import React, { useState, useEffect } from 'react';
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   <Eye className="w-4 h-4 inline mr-2" />
-                  Visible par
+                  Autorisé à
                 </label>
                 <div className="max-h-40 overflow-y-auto space-y-2 p-3 bg-slate-700/30 rounded-lg border border-slate-600">
-                  {collaborators.map(collab => (
+                  {teamMembers.map(collab => (
                     <div key={collab.id} className="flex items-center">
                       <input
                         type="checkbox"
-                        id={`visible_to-${collab.id}`}
-                        checked={formData.visible_to.includes(collab.id)}
+                        id={`authorized-${collab.id}`}
+                        checked={formData.authorized_users.includes(collab.id)}
                         onChange={() => handleVisibilityToggle(collab.id)}
                         className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                       />
-                      <label htmlFor={`visible_to-${collab.id}`} className="ml-3 block text-sm text-slate-300">
+                      <label htmlFor={`authorized-${collab.id}`} className="ml-3 block text-sm text-slate-300">
                         {collab.name}
                       </label>
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-slate-500 mt-2">Le dossier sera toujours visible par vous et les administrateurs.</p>
+                <p className="text-xs text-slate-500 mt-2">🔒 Tout le monde peut voir la liste des dossiers. Seuls les utilisateurs sélectionnés et les administrateurs peuvent consulter le contenu complet.</p>
               </div>
 
               <div>
@@ -389,19 +451,48 @@ import React, { useState, useEffect } from 'react';
                   <Paperclip className="w-4 h-4 inline mr-2" />
                   Pièces jointes
                 </label>
-                <div className="flex items-center gap-4">
-                  <label htmlFor="file-upload-case" className="cursor-pointer bg-slate-700/50 border border-slate-600 rounded-lg px-4 py-3 text-slate-300 hover:bg-slate-700 flex items-center gap-2">
-                    Choisir un fichier
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Bouton 1: Choisir des fichiers (sélection depuis l'app) */}
+                  <label 
+                    htmlFor="file-internal-case" 
+                    className="cursor-pointer bg-blue-600 hover:bg-blue-700 border border-blue-500 rounded-lg px-4 py-3 text-white font-medium flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <FileText className="w-4 h-4" />
+                    Choisir des fichiers
                   </label>
-                  <input id="file-upload-case" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} />
-                  <Button type="button" variant="outline" onClick={handleScan} className="flex items-center gap-2 border-slate-600 text-slate-300 hover:bg-slate-700">
-                    <ScanLine className="w-4 h-4" />
-                    Numériser
-                  </Button>
+                  <input 
+                    id="file-internal-case" 
+                    type="file" 
+                    className="sr-only" 
+                    onChange={handleFileChange} 
+                    multiple 
+                  />
+                  
+                  {/* Bouton 2: Importer un fichier (explorateur système) */}
+                  <label 
+                    htmlFor="file-external-case" 
+                    className="cursor-pointer bg-green-600 hover:bg-green-700 border border-green-500 rounded-lg px-4 py-3 text-white font-medium flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                    Importer fichier
+                  </label>
+                  <input 
+                    id="file-external-case" 
+                    type="file" 
+                    className="sr-only" 
+                    onChange={handleFileChange} 
+                    multiple 
+                  />
                 </div>
-                <div className="mt-2 space-y-2">
+                <p className="text-xs text-slate-500 mt-2">
+                  📁 <strong>Choisir</strong> : sélection depuis l'application | 📎 <strong>Importer</strong> : depuis l'ordinateur
+                </p>
+                <div className="mt-3 space-y-2">
                   {formData.attachments.map((name, index) => (
-                    <div key={index} className="text-sm text-slate-400 bg-slate-700/30 p-2 rounded-md">{name}</div>
+                    <div key={index} className="text-sm text-slate-300 bg-slate-700/30 p-2 rounded-md flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-blue-400" />
+                      {name}
+                    </div>
                   ))}
                 </div>
               </div>

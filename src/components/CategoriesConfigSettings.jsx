@@ -18,6 +18,7 @@ const CategoriesConfigSettings = () => {
   const [config, setConfig] = useState({
     task_categories: [],
     case_types: [],
+    document_types: [],
     user_roles: [],
     task_statuses: [],
     case_statuses: []
@@ -86,6 +87,7 @@ const CategoriesConfigSettings = () => {
   const sections = [
     { key: 'task_categories', label: 'Catégories de tâches', hasColor: false },
     { key: 'case_types', label: 'Types de dossiers', hasColor: false },
+    { key: 'document_types', label: 'Types de document', hasColor: false },
     { key: 'user_roles', label: 'Rôles utilisateurs', hasColor: false },
     { key: 'task_statuses', label: 'Statuts de tâches', hasColor: true },
     { key: 'case_statuses', label: 'Statuts de dossiers', hasColor: true }

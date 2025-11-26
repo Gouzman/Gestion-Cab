@@ -78,6 +78,7 @@ const CollaboratorListItem = ({ member, index, onEdit, onDelete, isCurrentUser }
             <div className="flex items-center gap-2 text-sm">
               <Briefcase className="w-4 h-4 text-slate-400" />
               <span className="text-slate-300">{member.function}</span>
+              <span className="text-xs text-slate-500">(Titre/Fonction)</span>
             </div>
           )}
           {member.email && (
@@ -93,31 +94,27 @@ const CollaboratorListItem = ({ member, index, onEdit, onDelete, isCurrentUser }
         </div>
       </div>
 
-      {/* Desktop layout - 5 columns */}
-      <div className="hidden lg:grid lg:grid-cols-5 gap-4 items-center">
-        {/* Column 1: Nom & Rôle */}
+      {/* Desktop layout - 4 columns */}
+      <div className="hidden lg:grid lg:grid-cols-4 gap-4 items-center">
+        {/* Column 1: Nom et Prénoms */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center flex-shrink-0">
             <User className="w-5 h-5 text-white" />
           </div>
           <div>
             <div className="text-white font-medium">{member.name || 'N/A'}</div>
-            <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
-              <ShieldCheck className="w-3 h-3" />
-              <span>{member.role || 'Non spécifié'}</span>
-            </div>
           </div>
         </div>
 
-        {/* Column 2: Fonction */}
+        {/* Column 2: Titre / Fonction */}
         <div>
           <div className="flex items-center gap-2 text-sm">
             <Briefcase className="w-4 h-4 text-slate-400" />
-            <span className="text-slate-300">{member.function || 'Non spécifiée'}</span>
+            <span className="text-slate-300">{member.function || 'Non spécifié'}</span>
           </div>
         </div>
 
-        {/* Column 4: Email */}
+        {/* Column 3: Courriel */}
         <div>
           <div className="flex items-center gap-2 text-sm">
             <Mail className="w-4 h-4 text-slate-400" />
@@ -125,11 +122,11 @@ const CollaboratorListItem = ({ member, index, onEdit, onDelete, isCurrentUser }
           </div>
         </div>
 
-        {/* Column 5: Date & Actions */}
+        {/* Column 4: Rôle & Actions */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <Calendar className="w-4 h-4" />
-            <span>{formatDate(member.created_at)}</span>
+          <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(member.role)}`}>
+            <ShieldCheck className="w-3 h-3" />
+            <span>{member.role || 'Non spécifié'}</span>
           </div>
           <div className="flex gap-1">
             <Button

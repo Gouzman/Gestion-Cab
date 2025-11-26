@@ -4,6 +4,7 @@ import { Scale, User, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useCompanyInfo } from '@/lib/appSettings';
 import SetPasswordScreen from '@/components/SetPasswordScreen';
 
 const LoginScreen = () => {
@@ -17,6 +18,7 @@ const LoginScreen = () => {
   const [resetEmail, setResetEmail] = useState('');
   const { toast } = useToast();
   const { signIn, checkFirstLogin, resetPassword } = useAuth();
+  const { companyInfo } = useCompanyInfo();
 
   const handleEmailNext = async (e) => {
     e.preventDefault();
@@ -118,17 +120,21 @@ const LoginScreen = () => {
           transition={{ duration: 0.5, type: 'spring' }}
           className="w-full max-w-md bg-slate-800/50 backdrop-blur-lg border border-slate-700/50 rounded-2xl p-8 shadow-2xl"
         >
-          <div className="flex flex-col items-center mb-8">
+        <div className="flex flex-col items-center mb-8">
+          {companyInfo?.logo_url ? (
+            <div className="mb-4 bg-white/10 p-3 rounded-lg">
+              <img src={companyInfo.logo_url} alt="Logo" className="h-16 object-contain rounded-lg" />
+            </div>
+          ) : (
             <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg mb-4">
               <Scale className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-white">Mot de passe oublié</h1>
-            <p className="text-slate-400 text-center mt-2">
-              Entrez votre email pour recevoir un lien de réinitialisation
-            </p>
-          </div>
-
-          <form onSubmit={handleForgotPassword} className="space-y-6">
+          )}
+          <h1 className="text-3xl font-bold text-white">Mot de passe oublié</h1>
+          <p className="text-slate-400 text-center mt-2">
+            Entrez votre email pour recevoir un lien de réinitialisation
+          </p>
+        </div>          <form onSubmit={handleForgotPassword} className="space-y-6">
             <div>
               <label htmlFor="reset-email" className="block text-sm font-medium text-slate-300 mb-2">
                 Email
@@ -181,10 +187,16 @@ const LoginScreen = () => {
         className="w-full max-w-md bg-slate-800/50 backdrop-blur-lg border border-slate-700/50 rounded-2xl p-8 shadow-2xl"
       >
         <div className="flex flex-col items-center mb-8">
-          <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg mb-4">
-            <Scale className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-white">Gestion de Cabinet</h1>
+          {companyInfo?.logo_url ? (
+            <div className="mb-4 bg-white/10 p-3 rounded-lg">
+              <img src={companyInfo.logo_url} alt="Logo" className="h-16 object-contain rounded-lg" />
+            </div>
+          ) : (
+            <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg mb-4">
+              <Scale className="w-8 h-8 text-white" />
+            </div>
+          )}
+          <h1 className="text-3xl font-bold text-white">{companyInfo?.name || 'LEGALSUITE'}</h1>
           <p className="text-slate-400">
             {currentStep === 'email' ? 'Saisissez votre adresse email' : 'Connectez-vous à votre espace'}
           </p>

@@ -40,6 +40,7 @@ const InvoiceForm = ({ invoice, onSubmit, onCancel, onPrint, currentUser }) => {
     clientName: '',
     caseId: '',
     caseTitle: '', // Titre du dossier pour l'affichage
+    invoice_type: 'definitive', // Type de facture : proforma ou definitive
     debours: {
       entrevue: 0,
       dossier: 0,
@@ -286,6 +287,35 @@ const InvoiceForm = ({ invoice, onSubmit, onCancel, onPrint, currentUser }) => {
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* Type de facture */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2 print:text-black">
+              <FileText className="w-4 h-4 inline mr-2" />
+              Type de facture *
+            </label>
+            <select
+              name="invoice_type"
+              value={formData.invoice_type}
+              onChange={(e) => setFormData({...formData, invoice_type: e.target.value})}
+              disabled={!canEditBilling}
+              required
+              className={`w-full px-4 py-3 border rounded-lg print:bg-white print:text-black print:border-gray-300 ${
+                canEditBilling 
+                  ? 'bg-slate-700/50 border-slate-600 text-white' 
+                  : 'bg-slate-600/50 border-slate-500 text-slate-300 cursor-not-allowed'
+              }`}
+            >
+              <option value="proforma">Facture Proforma</option>
+              <option value="definitive">Facture Définitive</option>
+            </select>
+            <p className="text-xs text-slate-500 mt-1 print:text-gray-500">
+              {formData.invoice_type === 'proforma' 
+                ? '📄 Facture provisoire à titre indicatif' 
+                : '✅ Facture définitive à régler'
+              }
+            </p>
           </div>
 
           <div className="space-y-4 p-4 border border-slate-700 rounded-lg print:border-gray-300">

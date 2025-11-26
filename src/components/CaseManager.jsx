@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
-import { Plus, Search, FileText, Scale, Clock, CheckCircle, Archive, Printer } from 'lucide-react';
+import { Plus, Search, FileText, Scale, Clock, CheckCircle, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import CaseForm from '@/components/CaseForm';
 import CaseListItem from '@/components/CaseListItem';
-import CasePrintPage from '@/components/CasePrintPage';
+
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { supabase } from '@/lib/customSupabaseClient';
 
@@ -16,7 +16,6 @@ const CaseManager = ({ currentUser }) => {
   const [editingCase, setEditingCase] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [showPrintPage, setShowPrintPage] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
 
   const isGerantOrAssocie = currentUser && (currentUser.function === 'Gerant' || currentUser.function === 'Associe Emerite');
@@ -147,10 +146,6 @@ const CaseManager = ({ currentUser }) => {
     'archive': cases.filter(c => c.status === 'archive').length
   };
 
-  const handlePrint = () => {
-    setShowPrintPage(true);
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -158,26 +153,16 @@ const CaseManager = ({ currentUser }) => {
           <h1 className="text-3xl font-bold text-white mb-2">Gestion des Dossiers</h1>
           <p className="text-slate-400">Suivez et gérez vos affaires juridiques</p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handlePrint}
-            className="border-slate-600 text-slate-300 hover:bg-slate-700"
-          >
-            <Printer className="w-4 h-4 mr-2" />
-            Imprimer
-          </Button>
-          <Button
-            onClick={() => {
-              setEditingCase(null);
-              setShowForm(true);
-            }}
-            className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Nouveau Dossier
-          </Button>
-        </div>
+        <Button
+          onClick={() => {
+            setEditingCase(null);
+            setShowForm(true);
+          }}
+          className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Nouveau Dossier
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -301,13 +286,6 @@ const CaseManager = ({ currentUser }) => {
             setEditingCase(null);
           }}
           currentUser={currentUser}
-        />
-      )}
-
-      {showPrintPage && (
-        <CasePrintPage
-          cases={filteredCases}
-          onClose={() => setShowPrintPage(false)}
         />
       )}
 

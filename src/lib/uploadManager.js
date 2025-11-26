@@ -46,7 +46,6 @@ export async function uploadTaskFile(file, taskId, userId = null) {
         console.error("❌ Le bucket 'attachments' n'existe pas dans Supabase Storage");
         // Essayer de créer le bucket via RPC prévu, puis réessayer l'upload une fois
         try {
-          const { ensureAttachmentsBucket } = await import('@/lib/uploadManager');
           const created = await ensureAttachmentsBucket(false);
           if (created) {
             // retry upload once

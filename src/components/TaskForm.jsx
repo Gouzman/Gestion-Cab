@@ -17,6 +17,8 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
     status: 'pending',
     deadline: '',
     assigned_to_id: '',
+    assigned_to_ids: [], // Multi-assignation
+    visible_by_ids: [], // Visibilité
     case_id: '',
     main_category: '',
     associated_tasks: [],
@@ -60,6 +62,8 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
         status: task.status || 'pending',
         deadline: task.deadline ? new Date(task.deadline).toISOString().substring(0, 16) : '',
         assigned_to_id: task.assigned_to_id || '',
+        assigned_to_ids: task.assigned_to_ids || (task.assigned_to_id ? [task.assigned_to_id] : []),
+        visible_by_ids: task.visible_by_ids || [],
         case_id: task.case_id || '',
         main_category: task.main_category || '',
         associated_tasks: task.associated_tasks || [],
@@ -421,7 +425,7 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Catégorie Principale
+                Catégorie tâche
               </label>
               <select
                 name="main_category"
@@ -478,7 +482,7 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
 
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Statut
+                Statut tâche
               </label>
               <select
                 name="status"
@@ -530,20 +534,69 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
               <User className="w-4 h-4 inline mr-2" />
-              Assigné à
+              Assigné à (multi-sélection)
             </label>
-            <select
-              name="assigned_to_id"
-              value={formData.assigned_to_id}
-              onChange={handleChange}
-              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={!isAdmin && !showReassign && task && task.assigned_to_id !== currentUser.id}
-            >
-              <option value="">Non assigné</option>
-              {teamMembers && teamMembers.map(member => (
-                <option key={member.id} value={member.id}>{member.name}</option>
-              ))}
-            </select>
+            <div className="p-4 bg-slate-700/50 border border-slate-600 rounded-lg max-h-48 overflow-y-auto space-y-2">
+              {teamMembers && teamMembers.length > 0 ? (
+                teamMembers.map(member => (
+                  <div key={member.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`assign-${member.id}`}
+                      checked={formData.assigned_to_ids.includes(member.id)}
+                      onCheckedChange={(checked) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          assigned_to_ids: checked
+                            ? [...prev.assigned_to_ids, member.id]
+                            : prev.assigned_to_ids.filter(id => id !== member.id),
+                          // Garder la compatibilité avec assigned_to_id (premier sélectionné)
+                          assigned_to_id: checked && prev.assigned_to_ids.length === 0
+                            ? member.id
+                            : (prev.assigned_to_ids.filter(id => id !== member.id)[0] || '')
+                        }));
+                      }}
+                      disabled={!isAdmin && !showReassign && task && task.assigned_to_id !== currentUser.id}
+                    />
+                    <Label 
+                      htmlFor={`assign-${member.id}`} 
+                      className="text-slate-300 font-normal cursor-pointer flex-1"
+                    >
+                      {member.name}
+                      {member.role && (
+                        <span className="ml-2 text-xs text-slate-500">({member.role})</span>
+                      )}
+                    </Label>
+                  </div>
+                ))
+              ) : (
+                <p className="text-slate-400 text-sm">Aucun membre d'équipe disponible</p>
+              )}
+            </div>
+            {formData.assigned_to_ids.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {formData.assigned_to_ids.map(id => {
+                  const member = teamMembers.find(m => m.id === id);
+                  return member ? (
+                    <span key={id} className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                      {member.name}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            assigned_to_ids: prev.assigned_to_ids.filter(aid => aid !== id),
+                            assigned_to_id: prev.assigned_to_ids.filter(aid => aid !== id)[0] || ''
+                          }));
+                        }}
+                        className="ml-2 text-blue-300 hover:text-blue-100"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ) : null;
+                })}
+              </div>
+            )}
           </div>
           
           {canReassign && !isAdmin && !showReassign && (
@@ -557,16 +610,48 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
               <Paperclip className="w-4 h-4 inline mr-2" />
               Pièces jointes
             </label>
-            <div className="flex items-center gap-4">
-              <label htmlFor="file-upload" className="cursor-pointer bg-slate-700/50 border border-slate-600 rounded-lg px-4 py-3 text-slate-300 hover:bg-slate-700 flex items-center gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Bouton 1: Choisir des fichiers (sélecteur interne) */}
+              <label 
+                htmlFor="file-internal" 
+                className="cursor-pointer bg-blue-600 hover:bg-blue-700 border border-blue-500 rounded-lg px-4 py-3 text-white font-medium flex items-center justify-center gap-2 transition-colors"
+              >
+                <FileText className="w-4 h-4" />
                 Choisir des fichiers
               </label>
-              <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} multiple />
+              <input 
+                id="file-internal" 
+                type="file" 
+                className="sr-only" 
+                onChange={handleFileChange} 
+                multiple 
+              />
+              
+              {/* Bouton 2: Importer un fichier (explorateur système) */}
+              <label 
+                htmlFor="file-external" 
+                className="cursor-pointer bg-green-600 hover:bg-green-700 border border-green-500 rounded-lg px-4 py-3 text-white font-medium flex items-center justify-center gap-2 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                Importer un fichier
+              </label>
+              <input 
+                id="file-external" 
+                type="file" 
+                className="sr-only" 
+                onChange={handleFileChange} 
+                multiple 
+                webkitdirectory="false"
+              />
+              
+              {/* Bouton 3: Numériser (scanner) */}
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={handleScan} 
-                className={`flex items-center gap-2 border-slate-600 text-slate-300 hover:bg-slate-700 ${scannerAvailable ? 'border-green-500 text-green-300' : ''}`}
+                className={`flex items-center justify-center gap-2 border-slate-600 text-slate-300 hover:bg-slate-700 ${
+                  scannerAvailable ? 'border-green-500 text-green-300 bg-green-500/10' : ''
+                }`}
                 title={scannerAvailable ? 'Scanner détecté' : 'Sélectionner un document scanné'}
               >
                 <ScanLine className="w-4 h-4" />
@@ -609,6 +694,93 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Champ Visible par */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              <Eye className="w-4 h-4 inline mr-2" />
+              Visible par (permissions de consultation)
+            </label>
+            <div className="p-4 bg-slate-700/50 border border-slate-600 rounded-lg max-h-48 overflow-y-auto space-y-2">
+              {teamMembers && teamMembers.length > 0 ? (
+                <>
+                  <div className="flex items-center space-x-2 pb-2 border-b border-slate-600">
+                    <Checkbox
+                      id="visible-all"
+                      checked={formData.visible_by_ids.length === teamMembers.length}
+                      onCheckedChange={(checked) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          visible_by_ids: checked ? teamMembers.map(m => m.id) : []
+                        }));
+                      }}
+                    />
+                    <Label 
+                      htmlFor="visible-all" 
+                      className="text-slate-300 font-semibold cursor-pointer flex-1"
+                    >
+                      Tous les membres
+                    </Label>
+                  </div>
+                  {teamMembers.map(member => (
+                    <div key={member.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`visible-${member.id}`}
+                        checked={formData.visible_by_ids.includes(member.id)}
+                        onCheckedChange={(checked) => {
+                          setFormData(prev => ({
+                            ...prev,
+                            visible_by_ids: checked
+                              ? [...prev.visible_by_ids, member.id]
+                              : prev.visible_by_ids.filter(id => id !== member.id)
+                          }));
+                        }}
+                      />
+                      <Label 
+                        htmlFor={`visible-${member.id}`} 
+                        className="text-slate-300 font-normal cursor-pointer flex-1"
+                      >
+                        {member.name}
+                        {member.role && (
+                          <span className="ml-2 text-xs text-slate-500">({member.role})</span>
+                        )}
+                      </Label>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <p className="text-slate-400 text-sm">Aucun membre d'équipe disponible</p>
+              )}
+            </div>
+            {formData.visible_by_ids.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {formData.visible_by_ids.map(id => {
+                  const member = teamMembers.find(m => m.id === id);
+                  return member ? (
+                    <span key={id} className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-green-500/20 text-green-300 border border-green-500/30">
+                      <Eye className="w-3 h-3 mr-1" />
+                      {member.name}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            visible_by_ids: prev.visible_by_ids.filter(vid => vid !== id)
+                          }));
+                        }}
+                        className="ml-2 text-green-300 hover:text-green-100"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ) : null;
+                })}
+              </div>
+            )}
+            <p className="mt-2 text-xs text-slate-500">
+              🔒 Sélectionnez les personnes autorisées à consulter cette tâche. Les administrateurs ont toujours accès.
+            </p>
           </div>
 
           <div className="flex gap-4 pt-6">

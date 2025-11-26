@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
-import { Search, Calendar, CheckCircle, Clock, Eye, ListTodo, FilePlus, User, FileText, Trash2, Play, Paperclip, Download } from 'lucide-react';
+import { Search, Calendar, CheckCircle, Clock, Eye, ListTodo, FilePlus, User, FileText, Trash2, Play, Paperclip, Download, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import TaskForm from '@/components/TaskForm';
@@ -46,8 +46,11 @@ const TaskManager = ({ currentUser }) => {
       fetchCases();
     }
 
-    // Exposer la fonction de rafraîchissement des fichiers globalement
-    globalThis.refreshTaskFiles = async (taskId) => {
+    // Exposer la fonction de rafraîchissement des fichiers via événement personnalisé
+    const handleRefreshTaskFiles = async (event) => {
+      const { taskId } = event.detail || {};
+      if (!taskId) return;
+      
       try {
         const files = await getTaskFiles(taskId);
         setTaskFiles(prev => ({
@@ -59,9 +62,11 @@ const TaskManager = ({ currentUser }) => {
       }
     };
 
+    window.addEventListener('refreshTaskFiles', handleRefreshTaskFiles);
+
     // Nettoyer à la décomposition du composant
     return () => {
-      delete globalThis.refreshTaskFiles;
+      window.removeEventListener('refreshTaskFiles', handleRefreshTaskFiles);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
@@ -70,7 +75,7 @@ const TaskManager = ({ currentUser }) => {
   const hasAttachedDocuments = (task) => {
     const attachmentsArray = Array.isArray(task.attachments)
       ? task.attachments
-      : task.attachments ? JSON.parse(task.attachments || "[]") : [];
+      : (task.attachments && task.attachments !== "") ? JSON.parse(task.attachments) : [];
     
     // Vérifier aussi si on a déjà chargé des fichiers et qu'il y en a
     const hasLoadedFiles = taskFiles[task.id] && taskFiles[task.id].length > 0;
@@ -82,7 +87,7 @@ const TaskManager = ({ currentUser }) => {
   const getAttachedDocuments = (task) => {
     const attachmentsArray = Array.isArray(task.attachments)
       ? task.attachments
-      : task.attachments ? JSON.parse(task.attachments || "[]") : [];
+      : (task.attachments && task.attachments !== "") ? JSON.parse(task.attachments) : [];
     return attachmentsArray;
   };
 
@@ -316,15 +321,15 @@ const TaskManager = ({ currentUser }) => {
       created_by_name: currentUser.name
     };
     
+    // Supprimer les champs qui n'existent pas dans le schéma Supabase et nettoyer
+    const { attachments, ...cleanPayload } = payload;
+    
     // Nettoyer les champs vides pour éviter les erreurs de validation
-    for (const key of Object.keys(payload)) {
-      if (payload[key] === '' || payload[key] === undefined) {
-        payload[key] = null;
+    for (const key of Object.keys(cleanPayload)) {
+      if (cleanPayload[key] === '' || cleanPayload[key] === undefined) {
+        cleanPayload[key] = null;
       }
     }
-    
-    // Supprimer les champs qui n'existent pas dans le schéma Supabase
-    delete payload.attachments;
     
     const { data, error } = await supabase.from('tasks').insert([payload]).select('id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,created_at,updated_at,created_by_id,created_by_name,assigned_at').single();
     
@@ -369,9 +374,20 @@ const TaskManager = ({ currentUser }) => {
           }
         } catch (error) {
           console.error('❌ Erreur critique lors de l\'upload (background):', error);
-          toast({ title: '❌ Erreur d\'upload', description: 'Échec de l\'upload des fichiers en arrière-plan.' , variant: 'destructive' });
+          toast({ 
+            title: '❌ Erreur d\'upload', 
+            description: `Échec de l'upload des fichiers : ${error.message || 'Erreur inconnue'}`, 
+            variant: 'destructive' 
+          });
         }
-      })();
+      })().catch(err => {
+        console.error('❌ Erreur non gérée dans l\'upload background:', err);
+        toast({ 
+          title: '❌ Erreur critique', 
+          description: 'Une erreur inattendue s\'est produite lors de l\'upload.', 
+          variant: 'destructive' 
+        });
+      });
     }
 
     // Uploader les fichiers scannés dans la table dédiée
@@ -390,8 +406,15 @@ const TaskManager = ({ currentUser }) => {
           }
         } catch (e) {
           console.error('Erreur lors de l\'upload des scans (background):', e);
+          toast({ 
+            title: '⚠️ Erreur upload scan', 
+            description: `Impossible d'uploader les scans : ${e.message || 'Erreur inconnue'}`, 
+            variant: 'destructive' 
+          });
         }
-      })();
+      })().catch(err => {
+        console.error('❌ Erreur non gérée dans l\'upload des scans:', err);
+      });
     }
 
   // Ajouter la tâche à la liste (les uploads se font en background)
@@ -444,12 +467,19 @@ const TaskManager = ({ currentUser }) => {
             toast({ title: '✅ Fichiers uploadés', description: `${uploadResult.data.length} fichier(s) ajoutés.` });
           } else if (uploadResult.errors && uploadResult.errors.length > 0) {
             uploadResult.errors.forEach(err => console.error(`❌ Fichier "${err.fileName}" non enregistré — cause: ${err.error}`));
-            toast({ title: '⚠️ Erreur upload', description: uploadResult.summary });
+            toast({ title: '⚠️ Erreur upload', description: uploadResult.summary, variant: 'destructive' });
           }
         } catch (e) {
           console.error('Erreur lors de l\'upload multiple (background):', e);
+          toast({ 
+            title: '❌ Erreur d\'upload', 
+            description: `Échec de l'upload : ${e.message || 'Erreur inconnue'}`, 
+            variant: 'destructive' 
+          });
         }
-      })();
+      })().catch(err => {
+        console.error('❌ Erreur non gérée dans l\'upload:', err);
+      });
     }
 
     // Uploader les nouveaux fichiers scannés en background
@@ -464,8 +494,15 @@ const TaskManager = ({ currentUser }) => {
           }
         } catch (e) {
           console.error('Erreur lors de l\'upload des scans (background):', e);
+          toast({ 
+            title: '⚠️ Erreur upload scan', 
+            description: `Impossible d'uploader les scans : ${e.message || 'Erreur inconnue'}`, 
+            variant: 'destructive' 
+          });
         }
-      })();
+      })().catch(err => {
+        console.error('❌ Erreur non gérée dans l\'upload des scans:', err);
+      });
     }
 
     if (editingTask.assigned_to_id !== dataToUpdate.assigned_to_id && dataToUpdate.assigned_to_id) {
@@ -476,16 +513,13 @@ const TaskManager = ({ currentUser }) => {
     }
 
     // Supprimer les colonnes qui n'existent pas dans le schéma Supabase
-    const { associated_tasks, main_category, ...cleanDataToUpdate } = dataToUpdate;
+    const { associated_tasks, main_category, attachments, ...cleanDataToUpdate } = dataToUpdate;
     
     // Nettoyer le payload pour supprimer les champs qui n'existent pas dans le schéma Supabase
     const updatePayload = { 
       ...cleanDataToUpdate, 
       assigned_to_name: assignedMember ? assignedMember.name : null
     };
-    
-    // Supprimer les champs qui n'existent pas dans le schéma Supabase
-    delete updatePayload.attachments;
     
     // Nettoyer les champs vides pour éviter les erreurs de validation
     for (const key of Object.keys(updatePayload)) {
@@ -499,20 +533,20 @@ const TaskManager = ({ currentUser }) => {
     if (error) {
       toast({ variant: "destructive", title: "Erreur", description: `Impossible de modifier la tâche: ${error.message}` });
     } else {
-      setTasks(tasks.map(t => t.id === editingTask.id ? data : t));
+      setTasks(tasks.map(t => t.id === editingTask.id ? data[0] : t));
       setEditingTask(null);
       setActiveTab('suivi');
       
       // Déclencher un événement pour rafraîchir le calendrier
-      if (data.deadline) {
+      if (data[0].deadline) {
         const taskUpdatedEvent = new CustomEvent('taskUpdated', { 
           detail: { 
-            task: data,
-            deadline: data.deadline 
+            task: data[0],
+            deadline: data[0].deadline 
           } 
         });
         window.dispatchEvent(taskUpdatedEvent);
-        console.log(`✅ Tâche mise à jour dans le calendrier à la date du ${new Date(data.deadline).toLocaleDateString('fr-FR')}`);
+        console.log(`✅ Tâche mise à jour dans le calendrier à la date du ${new Date(data[0].deadline).toLocaleDateString('fr-FR')}`);
       }
       
       let successMessage = "La tâche a été mise à jour.";
@@ -692,23 +726,24 @@ const TaskManager = ({ currentUser }) => {
             </div>
           </div>
 
-          {/* Affichage en liste simple et lisible */}
-          <div className="space-y-4">
-            {/* En-têtes de colonnes */}
-            <div className="hidden lg:grid lg:grid-cols-5 gap-6 px-6 py-3 bg-slate-900/50 rounded-lg border border-slate-700/30">
-              <div className="text-sm font-medium text-slate-300">Titre & Échéance</div>
-              <div className="text-sm font-medium text-slate-300">Description</div>
-              <div className="text-sm font-medium text-slate-300">Assigné à</div>
-              <div className="text-sm font-medium text-slate-300">Date de création</div>
-              <div className="text-sm font-medium text-slate-300 text-right">Statut & Actions</div>
+          {/* Affichage en liste des tâches - Design moderne */}
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 overflow-hidden">
+            {/* En-tête du tableau */}
+            <div className="hidden lg:grid lg:grid-cols-12 gap-4 px-6 py-3 bg-slate-900/50 border-b border-slate-700/30">
+              <div className="col-span-1 text-xs font-medium text-slate-400"></div>
+              <div className="col-span-4 text-xs font-medium text-slate-300">Tâche</div>
+              <div className="col-span-2 text-xs font-medium text-slate-300">Dossier</div>
+              <div className="col-span-2 text-xs font-medium text-slate-300">Échéance & Assigné</div>
+              <div className="col-span-2 text-xs font-medium text-slate-300">Statut</div>
+              <div className="col-span-1 text-xs font-medium text-slate-300 text-right">Priorité</div>
             </div>
 
             {filteredTasks.map((task, index) => {
               const getStatusColor = (status) => {
                 switch (status) {
-                  case 'pending': return 'bg-orange-500/20 text-orange-300 border-orange-500/30';
+                  case 'pending': return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
                   case 'seen': return 'bg-purple-500/20 text-purple-300 border-purple-500/30';
-                  case 'in-progress': return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+                  case 'in-progress': return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
                   case 'completed': return 'bg-green-500/20 text-green-300 border-green-500/30';
                   default: return 'bg-gray-500/20 text-gray-300 border-gray-500/30';
                 }
@@ -716,11 +751,21 @@ const TaskManager = ({ currentUser }) => {
 
               const getStatusLabel = (status) => {
                 switch (status) {
-                  case 'pending': return 'En Attente';
+                  case 'pending': return 'En attente';
                   case 'seen': return 'Vue';
-                  case 'in-progress': return 'En Cours';
+                  case 'in-progress': return 'En cours';
                   case 'completed': return 'Terminée';
                   default: return status;
+                }
+              };
+
+              const getPriorityBadge = (priority) => {
+                switch (priority) {
+                  case 'urgent': return { label: 'HAUTE', class: 'bg-red-500/20 text-red-300 border-red-500/40' };
+                  case 'high': return { label: 'HAUTE', class: 'bg-red-500/20 text-red-300 border-red-500/40' };
+                  case 'medium': return { label: 'MOYENNE', class: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' };
+                  case 'low': return { label: 'FAIBLE', class: 'bg-slate-500/20 text-slate-400 border-slate-500/40' };
+                  default: return { label: 'MOYENNE', class: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' };
                 }
               };
 
@@ -728,25 +773,51 @@ const TaskManager = ({ currentUser }) => {
                 if (!dateString) return 'N/A';
                 return new Date(dateString).toLocaleDateString('fr-FR', {
                   day: '2-digit',
-                  month: 'short',
+                  month: '2-digit',
                   year: 'numeric'
                 });
               };
 
+              const getCaseNumber = (caseId) => {
+                if (!caseId) return null;
+                const relatedCase = cases.find(c => c.id === caseId);
+                return relatedCase ? `CASE-${new Date(relatedCase.created_at || Date.now()).getFullYear()}-${String(caseId).slice(-3).padStart(3, '0')}` : `CASE-${caseId}`;
+              };
+
+              const priorityBadge = getPriorityBadge(task.priority);
+
               return (
                 <motion.div
                   key={task.id}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-lg p-6 hover:border-slate-600/50 transition-all duration-200"
+                  transition={{ delay: index * 0.03 }}
+                  className="border-b border-slate-700/30 last:border-0 hover:bg-slate-700/30 transition-colors"
                 >
-                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-6 items-start">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 px-6 py-4 items-center">
                     
-                    {/* Colonne Titre */}
-                    <div className="lg:col-span-1">
+                    {/* Case à cocher */}
+                    <div className="lg:col-span-1 flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={task.status === 'completed'}
+                        onChange={() => {
+                          if (task.status === 'completed') {
+                            handleStatusChange(task.id, 'in-progress', true);
+                          } else {
+                            handleStatusChange(task.id, 'completed', false);
+                          }
+                        }}
+                        className="w-5 h-5 rounded border-slate-600 bg-slate-700/50 text-blue-500 focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Titre de la tâche */}
+                    <div className="lg:col-span-4">
                       <div className="flex items-start gap-2">
-                        <h4 className="text-lg font-semibold text-white mb-2 line-clamp-2 flex-1">
+                        <h4 className={`text-sm font-semibold text-white line-clamp-2 flex-1 ${
+                          task.status === 'completed' ? 'line-through text-slate-500' : ''
+                        }`}>
                           {task.title}
                         </h4>
                         {hasAttachedDocuments(task) && (
@@ -754,93 +825,73 @@ const TaskManager = ({ currentUser }) => {
                             onClick={async () => {
                               const newExpandedId = expandedTaskId === task.id ? null : task.id;
                               setExpandedTaskId(newExpandedId);
-                              
-                              // Charger les fichiers avec fallback sur attachments si on étend la tâche et qu'on ne les a pas encore
                               if (newExpandedId && !taskFiles[task.id]) {
                                 const files = await fetchTaskFiles(task.id, task.attachments);
                                 setTaskFiles(prev => ({ ...prev, [task.id]: files }));
                               }
                             }}
-                            title={`${taskFiles[task.id]?.length || 0} document(s) joint(s) - Cliquer pour voir`}
-                            className="ml-2 flex items-center gap-1 px-2 py-1 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-all duration-200 flex-shrink-0"
+                            title={`${taskFiles[task.id]?.length || 0} document(s) joint(s)`}
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors text-xs"
                           >
-                            <Paperclip className="w-4 h-4" />
-                            <span className="text-xs font-semibold">{taskFiles[task.id]?.length || 0}</span>
+                            <Paperclip className="w-3 h-3" />
+                            {taskFiles[task.id]?.length || 0}
                           </button>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-slate-400">
-                        <Calendar className="w-4 h-4" />
-                        {task.deadline ? (
-                          <span className={task.deadline < new Date().toISOString() ? 'text-red-400' : ''}>
-                            {formatDate(task.deadline)}
-                          </span>
-                        ) : (
-                          <span>Pas d'échéance</span>
-                        )}
+                    </div>
+
+                    {/* Numéro de dossier */}
+                    <div className="lg:col-span-2">
+                      {task.case_id ? (
+                        <div className="flex items-center gap-2 text-xs text-slate-300">
+                          <FileText className="w-3 h-3 text-slate-400" />
+                          <span className="font-mono">{getCaseNumber(task.case_id)}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-500">Aucun dossier</span>
+                      )}
+                    </div>
+
+                    {/* Échéance & Assigné */}
+                    <div className="lg:col-span-2 space-y-1">
+                      <div className="flex items-center gap-2 text-xs text-slate-300">
+                        <Calendar className="w-3 h-3 text-slate-400" />
+                        <span>Échéance: {task.deadline ? formatDate(task.deadline) : 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-300">
+                        <User className="w-3 h-3 text-slate-400" />
+                        <span>Assigné à: {task.assigned_to_name || 'Non assigné'}</span>
                       </div>
                     </div>
 
-                    {/* Colonne Description */}
-                    <div className="lg:col-span-1">
-                      <div className="text-slate-300 text-sm line-clamp-3">
-                        {task.description || 'Aucune description'}
-                      </div>
-                    </div>
-
-                    {/* Colonne Assigné à */}
-                    <div className="lg:col-span-1">
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-slate-400" />
-                        <span className="text-slate-300 text-sm">
-                          {task.assigned_to_name || 'Non assigné'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Colonne Date de création */}
-                    <div className="lg:col-span-1">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-slate-400" />
-                        <span className="text-slate-300 text-sm">
-                          {formatDate(task.created_at)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Colonne Statut + Actions */}
-                    <div className="lg:col-span-1 flex flex-col lg:items-end gap-3">
-                      {/* Badge de statut */}
-                      <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+                    {/* Statut */}
+                    <div className="lg:col-span-2 flex items-center gap-2">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                        getStatusColor(task.status)
+                      }`}>
+                        {task.status === 'completed' && <CheckCircle className="w-3 h-3 mr-1" />}
+                        {task.status === 'pending' && <Clock className="w-3 h-3 mr-1 text-blue-300" />}
+                        {task.status === 'in-progress' && <AlertTriangle className="w-3 h-3 mr-1 text-yellow-300" />}
                         {getStatusLabel(task.status)}
-                      </div>
+                      </span>
+                    </div>
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-2">
-                        {task.status !== 'completed' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              let nextStatus;
-                              if (task.status === 'pending') nextStatus = 'seen';
-                              else if (task.status === 'seen') nextStatus = 'in-progress';
-                              else nextStatus = 'completed';
-                              handleStatusChange(task.id, nextStatus);
-                            }}
-                            className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
-                          >
-                            {task.status === 'pending' && <Eye className="w-4 h-4" />}
-                            {task.status === 'seen' && <Play className="w-4 h-4" />}
-                            {task.status === 'in-progress' && <CheckCircle className="w-4 h-4" />}
-                          </Button>
-                        )}
-                        
+                    {/* Badge Priorité */}
+                    <div className="lg:col-span-1 flex items-center justify-end gap-2">
+                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold border ${
+                        priorityBadge.class
+                      }`}>
+                        {priorityBadge.label}
+                      </span>
+                      
+                      {/* Menu actions */}
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleEditRequest(task)}
-                          className="text-slate-400 hover:text-white hover:bg-slate-700/50"
+                          className="h-7 w-7 p-0 text-slate-400 hover:text-white hover:bg-slate-700/50"
+                          title="Modifier"
                         >
                           <FileText className="w-4 h-4" />
                         </Button>
@@ -860,7 +911,8 @@ const TaskManager = ({ currentUser }) => {
                                 }
                               });
                             }}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                            className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                            title="Supprimer"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -953,15 +1005,19 @@ const TaskManager = ({ currentUser }) => {
                 </motion.div>
               );
             })}
+            
+            {filteredTasks.length === 0 && (
+              <div className="text-center py-16">
+                <ListTodo className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-slate-400 mb-2">Aucune tâche trouvée</h3>
+                <p className="text-sm text-slate-500">
+                  {searchTerm || filterStatus !== 'all' || filterPriority !== 'all' 
+                    ? 'Essayez de modifier vos filtres de recherche' 
+                    : 'Cliquez sur "Nouvelle Tâche" pour commencer'}
+                </p>
+              </div>
+            )}
           </div>
-
-          {filteredTasks.length === 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
-              <Calendar className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-slate-400 mb-2">Aucune tâche trouvée</h3>
-              <p className="text-slate-500">{searchTerm || filterStatus !== 'all' || filterPriority !== 'all' ? 'Essayez de modifier vos filtres de recherche' : 'Commencez par créer votre première tâche'}</p>
-            </motion.div>
-          )}
         </motion.div>
       )}
 

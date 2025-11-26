@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Tag, Save, Plus, Trash2, Shield, History, Building2, Menu as MenuIcon, Tags } from 'lucide-react';
+import { Tag, Save, Plus, Trash2, Shield, History, Building2, Menu as MenuIcon, Tags, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -11,6 +11,7 @@ import CompanyInfoSettings from '@/components/CompanyInfoSettings';
 import MenuConfigSettings from '@/components/MenuConfigSettings';
 import CategoriesConfigSettings from '@/components/CategoriesConfigSettings';
 import MenuPermissionsManager from '@/components/MenuPermissionsManager';
+import AppearanceSettings from '@/components/AppearanceSettings';
 
 
 
@@ -108,6 +109,11 @@ const Settings = () => {
       <div>
         <h1 className="text-3xl font-bold text-white mb-2">Paramètres</h1>
         <p className="text-slate-400">Gérez les configurations de l'application.</p>
+        <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+          <span className="text-xs text-purple-300">
+            💡 <strong>Info :</strong> Cette section gère les <strong>paramètres système</strong> de l'application (entreprise, apparence, permissions)
+          </span>
+        </div>
       </div>
 
       {/* Navigation par onglets */}
@@ -147,6 +153,18 @@ const Settings = () => {
           >
             <Tags className="w-4 h-4 inline mr-2" />
             Catégories avancées
+          </button>
+
+          <button
+            onClick={() => setActiveTab('appearance')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'appearance'
+                ? 'border-purple-500 text-purple-400'
+                : 'border-transparent text-slate-400 hover:text-slate-300'
+            }`}
+          >
+            <Palette className="w-4 h-4 inline mr-2" />
+            Apparence
           </button>
           
           <button
@@ -217,6 +235,12 @@ const Settings = () => {
       {activeTab === 'advanced-categories' && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
           <CategoriesConfigSettings />
+        </motion.div>
+      )}
+
+      {activeTab === 'appearance' && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+          <AppearanceSettings />
         </motion.div>
       )}
       

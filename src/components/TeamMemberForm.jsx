@@ -62,11 +62,11 @@ const TeamMemberForm = ({ member, onSubmit, onCancel }) => {
           </Button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
               <User className="w-4 h-4 inline mr-2" />
-              NOMS ET PRENOMS *
+              Nom et Prénoms *
             </label>
             <input
               type="text"
@@ -75,29 +75,43 @@ const TeamMemberForm = ({ member, onSubmit, onCancel }) => {
               onChange={handleChange}
               required
               className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="Ex: Marie Curie"
+              placeholder="Ex: Marie Dupont"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
               <Briefcase className="w-4 h-4 inline mr-2" />
-              FONCTIONS
+              Titre / Fonction
             </label>
-            <input
-              type="text"
+            <select
               name="function"
               value={formData.function}
               onChange={handleChange}
-              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="Ex: Avocat Stagiaire, Dr., Me."
-            />
+              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 cursor-pointer"
+            >
+              <option value="">Sélectionner un titre</option>
+              <option value="Associé principal">Associé principal</option>
+              <option value="Associé">Associé</option>
+              <option value="Avocat senior">Avocat senior</option>
+              <option value="Avocat">Avocat</option>
+              <option value="Avocat stagiaire">Avocat stagiaire</option>
+              <option value="Juriste senior">Juriste senior</option>
+              <option value="Juriste">Juriste</option>
+              <option value="Secrétaire juridique">Secrétaire juridique</option>
+              <option value="Secrétaire">Secrétaire</option>
+              <option value="Assistant(e) juridique">Assistant(e) juridique</option>
+              <option value="Assistant(e)">Assistant(e)</option>
+              <option value="Comptable">Comptable</option>
+              <option value="Responsable administratif">Responsable administratif</option>
+            </select>
+            <p className="text-xs text-slate-400 mt-1">Position hiérarchique et rôle au cabinet</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
               <Mail className="w-4 h-4 inline mr-2" />
-              COURRIELS *
+              Courriel *
             </label>
             <input
               type="email"
@@ -106,24 +120,30 @@ const TeamMemberForm = ({ member, onSubmit, onCancel }) => {
               onChange={handleChange}
               required
               className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="marie.curie@cabinet.com"
+              placeholder="marie.dupont@cabinet.com"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
               <ShieldCheck className="w-4 h-4 inline mr-2" />
-              Rôle / Niveau d'accréditation *
+              Rôle *
             </label>
-            <input
-              type="text"
+            <select
               name="role"
               value={formData.role}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500"
-              placeholder="Inscrire un poste au choix (ex: Admin, Avocat...)"
-            />
+              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 cursor-pointer"
+            >
+              <option value="">Sélectionner un rôle</option>
+              <option value="Administrateur">Administrateur</option>
+              <option value="Gérant">Gérant</option>
+              <option value="Collaborateur">Collaborateur</option>
+              <option value="Assistant(e)">Assistant(e)</option>
+              <option value="Consultant">Consultant</option>
+            </select>
+            <p className="text-xs text-slate-400 mt-1">Niveau d'accès dans l'application</p>
           </div>
 
           <div className="flex gap-4 pt-6">

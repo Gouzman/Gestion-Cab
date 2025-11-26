@@ -132,6 +132,36 @@ import React, { useState, useEffect, useCallback } from 'react';
         return 'bg-purple-500/70 text-white';
       };
 
+      const getEventTooltip = (item) => {
+        const itemTime = parseISO(item.display_time);
+        const metadata = item.metadata || {};
+        
+        let tooltip = `${item.type === 'task' ? '📝 Tâche' : '📅 Événement'}: ${item.title}\n`;
+        tooltip += `📆 ${format(itemTime, 'dd/MM/yyyy à HH:mm', { locale: fr })}\n`;
+        
+        if (item.description) {
+          tooltip += `💬 Description: ${item.description}\n`;
+        }
+        
+        if (metadata.location) {
+          tooltip += `📍 Lieu: ${metadata.location}\n`;
+        }
+        
+        if (metadata.linked_cases && metadata.linked_cases.length > 0) {
+          tooltip += `📂 Dossier(s): ${metadata.linked_cases.length} lié(s)\n`;
+        }
+        
+        if (metadata.linked_files && metadata.linked_files.length > 0) {
+          tooltip += `📎 Fichier(s): ${metadata.linked_files.length} joint(s)\n`;
+        }
+        
+        if (metadata.attendees && metadata.attendees.length > 0) {
+          tooltip += `👥 Participants: ${metadata.attendees.length}\n`;
+        }
+        
+        return tooltip;
+      };
+
       const renderMonthCells = () => {
         const monthStart = startOfMonth(currentDate);
         const monthEnd = endOfMonth(monthStart);
@@ -165,8 +195,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                       return (
                         <div 
                           key={`${item.type}-${item.id}`} 
-                          className={`px-1.5 py-0.5 text-xs rounded-md mb-1 ${getMonthItemClassName(item)}`}
-                          title={`${item.type === 'task' ? 'Tâche' : 'Événement'}: ${item.title} - Créé/Programmé le ${format(itemTime, 'dd/MM/yyyy à HH:mm')}`}
+                          className={`px-1.5 py-0.5 text-xs rounded-md mb-1 ${getMonthItemClassName(item)} cursor-pointer hover:opacity-90 transition-opacity`}
+                          title={getEventTooltip(item)}
                         >
                           <div className="font-semibold text-xs flex items-center justify-between">
                             <span>{format(itemTime, 'HH:mm')}</span>
@@ -217,14 +247,15 @@ import React, { useState, useEffect, useCallback } from 'react';
           start: startOfWeek(currentDate, { locale: fr }),
           end: endOfWeek(currentDate, { locale: fr }),
         });
-        const hours = Array.from({ length: 24 }, (_, i) => i); // 00h to 23h
+        // Plage horaire optimisée : 6h à 22h (17 heures)
+        const hours = Array.from({ length: 17 }, (_, i) => i + 6); // 06h to 22h
 
         return (
           <div className="flex">
             <div className="flex flex-col">
-              <div className="h-16"></div>
+              <div className="h-12"></div>
               {hours.map(hour => (
-                <div key={hour} className="h-16 flex items-center justify-center text-xs text-slate-400 pr-2">
+                <div key={hour} className="h-12 flex items-center justify-center text-xs text-slate-400 pr-2">
                   {format(setHours(new Date(), hour), 'HH:mm')}
                 </div>
               ))}
@@ -232,26 +263,27 @@ import React, { useState, useEffect, useCallback } from 'react';
             <div className="flex-1 grid grid-cols-7">
               {weekDays.map(day => (
                 <div key={day.toString()} className="flex flex-col border-l border-slate-700/50">
-                  <div className={`h-16 text-center p-2 ${isSameDay(day, new Date()) ? 'text-blue-400' : 'text-slate-300'}`}>
+                  <div className={`h-12 text-center p-2 ${isSameDay(day, new Date()) ? 'text-blue-400' : 'text-slate-300'}`}>
                     <p className="font-semibold text-lg">{format(day, 'd')}</p>
                     <p className="text-xs capitalize">{format(day, 'EEE', { locale: fr })}</p>
                   </div>
                   <div className="relative flex-1">
                     {hours.map(hour => (
-                      <div key={hour} className="h-16 border-t border-slate-700/50"></div>
+                      <div key={hour} className="h-12 border-t border-slate-700/50"></div>
                     ))}
                     {[...tasks, ...events]
                       .filter(item => isSameDay(parseISO(item.display_time), day))
                       .map(item => {
                         const itemDate = parseISO(item.display_time);
-                        const top = (itemDate.getHours() + itemDate.getMinutes() / 60) * 4; // 4rem (h-16) per hour
+                        const hoursSince6am = itemDate.getHours() - 6; // Ajustement pour commencer à 6h
+                        const top = (hoursSince6am + itemDate.getMinutes() / 60) * 3; // 3rem (h-12) per hour
                         
                         return (
                           <div
                             key={`${item.type}-${item.id}`}
-                            className={`absolute w-full p-1 text-xs rounded-md truncate z-10 ${getItemClassName(item)}`}
+                            className={`absolute w-full p-1 text-xs rounded-md truncate z-10 cursor-pointer hover:opacity-90 transition-opacity ${getItemClassName(item)}`}
                             style={{ top: `${top}rem` }}
-                            title={`${item.type === 'task' ? 'Tâche' : 'Événement'}: ${item.title} - Créé/Programmé le ${format(itemDate, 'dd/MM/yyyy à HH:mm')}`}
+                            title={getEventTooltip(item)}
                           >
                             <div className="font-semibold flex items-center justify-between">
                               <span>{format(itemDate, 'HH:mm')}</span>

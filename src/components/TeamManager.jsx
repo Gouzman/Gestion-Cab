@@ -233,6 +233,11 @@ const TeamManager = ({ currentUser }) => {
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Gestion des Collaborateurs</h1>
           <p className="text-slate-400">Gérez les membres de votre cabinet et leurs accès</p>
+          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+            <span className="text-xs text-blue-300">
+              💡 <strong>Info :</strong> Cette section gère le <strong>personnel interne</strong> du cabinet (avocats, assistants, etc.)
+            </span>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button
@@ -280,12 +285,11 @@ const TeamManager = ({ currentUser }) => {
       </div>
 
       {/* Column Headers */}
-      <div className="hidden lg:grid lg:grid-cols-5 gap-4 px-6 py-3 bg-slate-900/50 backdrop-blur-sm rounded-lg border border-slate-700/50 text-sm text-slate-400 font-medium">
-        <div>Nom & Rôle</div>
-        <div>Titre</div>
-        <div>Fonction</div>
-        <div>Email</div>
-        <div>Date & Actions</div>
+      <div className="hidden lg:grid lg:grid-cols-4 gap-4 px-6 py-3 bg-slate-900/50 backdrop-blur-sm rounded-lg border border-slate-700/50 text-sm text-slate-400 font-medium">
+        <div>Nom et Prénoms</div>
+        <div>Titre / Fonction</div>
+        <div>Courriel</div>
+        <div>Rôle & Actions</div>
       </div>
 
       {/* Collaborator List */}
