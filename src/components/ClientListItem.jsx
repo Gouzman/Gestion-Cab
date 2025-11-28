@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { User, Mail, Phone, MapPin, Edit, Trash2, Building } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getClientDisplayName } from '../lib/clientUtils';
 
 const ClientListItem = ({ client, index, onEdit, onDelete }) => {
   const formatDate = (dateString) => {
@@ -37,7 +38,7 @@ const ClientListItem = ({ client, index, onEdit, onDelete }) => {
               {getTypeIcon(client.type)}
             </div>
             <h4 className="text-lg font-semibold text-white line-clamp-1">
-              {client.name}
+              {getClientDisplayName(client)}
             </h4>
           </div>
           <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-700/50 text-slate-300 border border-slate-600/30">

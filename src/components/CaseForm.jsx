@@ -18,24 +18,18 @@ import React, { useState, useEffect } from 'react';
 
     const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
   const [formData, setFormData] = useState({
-    case_reference: '',
     title: '',
     client_id: '',
     client_type: 'particulier',
     client: '',
     opposing_party: '',
     description: '',
-    case_type: 'civil',
-    type: 'civil',
     status: 'en-cours',
     priority: 'medium',
-    startDate: '',
-    expectedEndDate: '',
     honoraire: '',
-    timeSpent: 0,
     notes: '',
     attachments: [],
-    authorized_users: []
+    visible_to: []
   });
   const [teamMembers, setTeamMembers] = useState([]);
   
@@ -56,24 +50,18 @@ import React, { useState, useEffect } from 'react';
       useEffect(() => {
         if (caseData) {
           setFormData({
-            case_reference: caseData.case_reference || '',
             title: caseData.title || '',
             client_id: caseData.client_id || '',
             client_type: caseData.client_type || 'particulier',
             client: caseData.client || '',
             opposing_party: caseData.opposing_party || '',
             description: caseData.description || '',
-            case_type: caseData.case_type || caseData.type || 'civil',
-            type: caseData.type || 'civil',
             status: caseData.status || 'en-cours',
             priority: caseData.priority || 'medium',
-            startDate: caseData.startDate || '',
-            expectedEndDate: caseData.expectedEndDate || '',
             honoraire: caseData.honoraire ? formatCurrency(caseData.honoraire) : '',
-            timeSpent: caseData.timeSpent || 0,
             notes: caseData.notes || '',
             attachments: caseData.attachments || [],
-            authorized_users: caseData.authorized_users || caseData.visible_to || []
+            visible_to: caseData.visible_to || []
           });
         }
       }, [caseData]);
@@ -100,10 +88,10 @@ import React, { useState, useEffect } from 'react';
 
       const handleVisibilityToggle = (collaboratorId) => {
         setFormData(prev => {
-          const authorized_users = prev.authorized_users.includes(collaboratorId)
-            ? prev.authorized_users.filter(id => id !== collaboratorId)
-            : [...prev.authorized_users, collaboratorId];
-          return { ...prev, authorized_users };
+          const visible_to = prev.visible_to.includes(collaboratorId)
+            ? prev.visible_to.filter(id => id !== collaboratorId)
+            : [...prev.visible_to, collaboratorId];
+          return { ...prev, visible_to };
         });
       };
 
@@ -169,24 +157,6 @@ import React, { useState, useEffect } from 'react';
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="case-reference" className="block text-sm font-medium text-slate-300 mb-2">
-                  <FileText className="w-4 h-4 inline mr-2" />
-                  Réf dossier *
-                </label>
-                <input
-                  type="text"
-                  id="case-reference"
-                  name="case_reference"
-                  value={formData.case_reference}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Ex: CLI-2024-001, CAB-23/FIN, etc."
-                />
-                <p className="text-xs text-slate-500 mt-1">Saisissez votre propre nomenclature de référence</p>
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   <FileText className="w-4 h-4 inline mr-2" />
                   Titre du dossier *
@@ -200,28 +170,6 @@ import React, { useState, useEffect } from 'react';
                   className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Ex: Affaire Martin vs. Société ABC"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Type de dossier *
-                </label>
-                <select
-                  name="case_type"
-                  value={formData.case_type}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="civil">Droit Civil</option>
-                  <option value="commercial">Droit Commercial</option>
-                  <option value="penal">Droit Pénal</option>
-                  <option value="family">Droit de la Famille</option>
-                  <option value="labor">Droit du Travail</option>
-                  <option value="real-estate">Droit Immobilier</option>
-                  <option value="intellectual">Propriété Intellectuelle</option>
-                  <option value="administrative">Droit Administratif</option>
-                </select>
               </div>
 
               <div>
@@ -373,55 +321,6 @@ import React, { useState, useEffect } from 'react';
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    <Calendar className="w-4 h-4 inline mr-2" />
-                    Date de début
-                  </label>
-                  <input
-                    type="date"
-                    name="startDate"
-                    value={formData.startDate}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    <Calendar className="w-4 h-4 inline mr-2" />
-                    Date de fin prévue
-                  </label>
-                  <input
-                    type="date"
-                    name="expectedEndDate"
-                    value={formData.expectedEndDate}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    <Timer className="w-4 h-4 inline mr-2" />
-                    Temps passé (heures)
-                  </label>
-                  <input
-                    type="number"
-                    name="timeSpent"
-                    value={isNaN(formData.timeSpent) ? "" : formData.timeSpent}
-                    onChange={handleChange}
-                    step="0.5"
-                    min="0"
-                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Ex: 10.5"
-                  />
-                </div>
-              </div>
-              
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   <Eye className="w-4 h-4 inline mr-2" />
@@ -433,7 +332,7 @@ import React, { useState, useEffect } from 'react';
                       <input
                         type="checkbox"
                         id={`authorized-${collab.id}`}
-                        checked={formData.authorized_users.includes(collab.id)}
+                        checked={formData.visible_to.includes(collab.id)}
                         onChange={() => handleVisibilityToggle(collab.id)}
                         className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                       />

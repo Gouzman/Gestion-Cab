@@ -109,7 +109,9 @@ const ClientForm = ({ client, onSubmit, onCancel }) => {
             </div>
           </div>
 
-          {formData.type === 'company' && (
+          {/* Affichage conditionnel selon le type de client */}
+          {formData.type === 'company' ? (
+            // Pour une entreprise : nom de l'entreprise obligatoire
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 <Building className="w-4 h-4 inline mr-2" />
@@ -120,44 +122,45 @@ const ClientForm = ({ client, onSubmit, onCancel }) => {
                 name="company"
                 value={formData.company}
                 onChange={handleChange}
-                required={formData.type === 'company'}
+                required
                 className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="Ex: SARL Martin & Associés"
               />
             </div>
+          ) : (
+            // Pour un particulier : prénom et nom obligatoires
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Prénom *
+                </label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Jean"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Nom *
+                </label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Dupont"
+                />
+              </div>
+            </div>
           )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                {formData.type === 'company' ? 'Prénoms (Dirigeant) *' : 'Prénom *'}
-              </label>
-              <input
-                type="text"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Jean"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                {formData.type === 'company' ? 'Nom (Dirigeant) *' : 'Nom *'}
-              </label>
-              <input
-                type="text"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Dupont"
-              />
-            </div>
-          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>

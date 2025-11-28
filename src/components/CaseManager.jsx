@@ -43,16 +43,28 @@ const CaseManager = ({ currentUser }) => {
   };
 
   const handleAddCase = async (caseData) => {
-    // Préparer le payload avec tous les champs disponibles
-    const payload = { ...caseData };
+    // Liste des colonnes valides dans la table cases
+    const validColumns = [
+      'title', 'client_id', 'client_type', 'client', 'opposing_party',
+      'description', 'status', 'priority',
+      'honoraire', 'notes', 'attachments', 'visible_to', 'created_by'
+    ];
     
-    // Supprimer uniquement l'id pour laisser Supabase le générer
-    delete payload.id;
+    // Filtrer le payload pour ne garder que les colonnes valides
+    const payload = {};
+    validColumns.forEach(col => {
+      if (caseData[col] !== undefined) {
+        payload[col] = caseData[col];
+      }
+    });
+    
+    // Ajouter le créateur
+    payload.created_by = currentUser?.id;
     
     // Corriger les champs numériques NaN
     for (const key in payload) {
       if (typeof payload[key] === "number" && Number.isNaN(payload[key])) {
-        payload[key] = 0; // valeur par défaut sécurisée
+        payload[key] = 0;
       }
     }
     
@@ -71,16 +83,25 @@ const CaseManager = ({ currentUser }) => {
   };
 
   const handleEditCase = async (caseData) => {
-    // Préparer le payload avec tous les champs disponibles
-    const payload = { ...caseData };
+    // Liste des colonnes valides dans la table cases
+    const validColumns = [
+      'title', 'client_id', 'client_type', 'client', 'opposing_party',
+      'description', 'status', 'priority',
+      'honoraire', 'notes', 'attachments', 'visible_to'
+    ];
     
-    // Supprimer uniquement l'id (ne pas le mettre à jour)
-    delete payload.id;
+    // Filtrer le payload pour ne garder que les colonnes valides
+    const payload = {};
+    validColumns.forEach(col => {
+      if (caseData[col] !== undefined) {
+        payload[col] = caseData[col];
+      }
+    });
     
     // Corriger les champs numériques NaN
     for (const key in payload) {
       if (typeof payload[key] === "number" && Number.isNaN(payload[key])) {
-        payload[key] = 0; // valeur par défaut sécurisée
+        payload[key] = 0;
       }
     }
     

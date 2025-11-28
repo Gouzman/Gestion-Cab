@@ -1,9 +1,12 @@
 // src/lib/uploadManager.js
 import { supabase } from "@/lib/customSupabaseClient";
 import { addTaskFile } from "@/api/taskFiles";
+import { isWordDocument, convertWordToPdf, getConvertedPdfName } from "@/lib/wordToPdfConverter";
+import { isPdfDocument, optimizePdfForViewer, checkPdfCompatibility } from "@/lib/pdfOptimizer";
 
 /**
  * Upload un fichier vers Supabase Storage avec le bon format de chemin
+ * Convertit automatiquement les documents Word (.doc, .docx) en PDF avant l'upload
  * @param {File} file - Le fichier à uploader
  * @param {string} taskId - ID de la tâche
  * @param {string} userId - ID de l'utilisateur (optionnel)
@@ -22,18 +25,73 @@ export async function uploadTaskFile(file, taskId, userId = null) {
       };
     }
 
-    // 2. Créer le chemin selon le format attendu : tasks/{taskId}/{fileName}
+    // 2. Conversion automatique Word → PDF si nécessaire
+    let fileToUpload = file;
+    let originalFileName = file.name;
+    let wasConverted = false;
+    let wasOptimized = false;
+
+    if (isWordDocument(file)) {
+      console.log(`📄 Document Word détecté: "${file.name}" - Conversion en PDF...`);
+      try {
+        const convertedPdf = await convertWordToPdf(file);
+        if (convertedPdf) {
+          fileToUpload = convertedPdf;
+          wasConverted = true;
+          console.log(`✅ Conversion réussie: "${file.name}" → "${convertedPdf.name}"`);
+        } else {
+          console.warn(`⚠️ Conversion échouée pour "${file.name}", upload du fichier original`);
+        }
+      } catch (conversionError) {
+        console.warn(`⚠️ Erreur de conversion pour "${file.name}":`, conversionError.message);
+        console.warn(`📤 Upload du fichier Word original sans conversion`);
+      }
+    }
+
+    // 2b. Optimisation PDF pour garantir la compatibilité avec PDF.js
+    // Cette étape intègre les polices et normalise le PDF
+    if (isPdfDocument(fileToUpload)) {
+      console.log(`📄 PDF détecté: "${fileToUpload.name}" - Optimisation pour PDF.js...`);
+      try {
+        const optimizedPdf = await optimizePdfForViewer(fileToUpload);
+        if (optimizedPdf && optimizedPdf !== fileToUpload) {
+          const originalSize = (fileToUpload.size / 1024).toFixed(2);
+          const optimizedSize = (optimizedPdf.size / 1024).toFixed(2);
+          console.log(`✅ PDF optimisé: ${originalSize} Ko → ${optimizedSize} Ko`);
+          fileToUpload = optimizedPdf;
+          wasOptimized = true;
+        } else {
+          console.log(`ℹ️ PDF déjà optimal ou optimisation non nécessaire`);
+        }
+      } catch (optimizationError) {
+        console.warn(`⚠️ Erreur d'optimisation PDF pour "${fileToUpload.name}":`, optimizationError.message);
+        console.warn(`📤 Upload du PDF original sans optimisation`);
+      }
+    }
+
+    // 3. Créer le chemin selon le format attendu : tasks/{taskId}/{fileName}
     const timestamp = Date.now();
-    const sanitizedFileName = file.name.replaceAll(/[^a-zA-Z0-9.-]/g, '_');
+    const sanitizedFileName = fileToUpload.name.replaceAll(/[^a-zA-Z0-9.-]/g, '_');
     const fileName = `${timestamp}_${sanitizedFileName}`;
     const filePath = `tasks/${taskId}/${fileName}`;
 
-    console.log(`📤 Upload du fichier "${file.name}" (${(file.size / 1024).toFixed(2)} Ko) pour la tâche ${taskId}...`);
+    let uploadMessage = '';
+    if (wasConverted && wasOptimized) {
+      uploadMessage = `📤 Upload du PDF converti et optimisé "${fileToUpload.name}" (original: "${originalFileName}") pour la tâche ${taskId}...`;
+    } else if (wasConverted) {
+      uploadMessage = `📤 Upload du PDF converti "${fileToUpload.name}" (original: "${originalFileName}") pour la tâche ${taskId}...`;
+    } else if (wasOptimized) {
+      uploadMessage = `📤 Upload du PDF optimisé "${fileToUpload.name}" (${(fileToUpload.size / 1024).toFixed(2)} Ko) pour la tâche ${taskId}...`;
+    } else {
+      uploadMessage = `📤 Upload du fichier "${fileToUpload.name}" (${(fileToUpload.size / 1024).toFixed(2)} Ko) pour la tâche ${taskId}...`;
+    }
+    
+    console.log(uploadMessage);
 
-    // 3. Uploader le fichier vers Supabase Storage (upload direct pour plus de vitesse)
+    // 4. Uploader le fichier (converti ou original) vers Supabase Storage
     const { error: uploadError } = await supabase.storage
       .from("attachments")
-      .upload(filePath, file, {
+      .upload(filePath, fileToUpload, {
         cacheControl: "3600",
         upsert: true,
       });
@@ -51,7 +109,7 @@ export async function uploadTaskFile(file, taskId, userId = null) {
             // retry upload once
             const { error: retryError } = await supabase.storage
               .from("attachments")
-              .upload(filePath, file, {
+              .upload(filePath, fileToUpload, {
                 cacheControl: "3600",
                 upsert: true,
               });
@@ -97,15 +155,26 @@ export async function uploadTaskFile(file, taskId, userId = null) {
     // et limites strictes. Ici nous n'envoyons jamais file_data.
     const base64Data = null;
 
-    // 7. Enregistrer les métadonnées dans la table tasks_files (avec backup base64 si disponible)
+    // 7. Enregistrer les métadonnées dans la table tasks_files
+    // Si le fichier a été converti et/ou optimisé, on enregistre les infos
+    let displayName = fileToUpload.name;
+    
+    if (wasConverted && wasOptimized) {
+      displayName = `${fileToUpload.name} (converti et optimisé depuis ${originalFileName})`;
+    } else if (wasConverted) {
+      displayName = `${fileToUpload.name} (converti depuis ${originalFileName})`;
+    } else if (wasOptimized) {
+      displayName = `${fileToUpload.name} (optimisé pour PDF.js)`;
+    }
+    
     console.log(`💾 Enregistrement des métadonnées dans tasks_files (task_id: ${taskId})...`);
     
     const fileRecord = await addTaskFile(
       taskId,
-      file.name,
+      displayName,
       publicUrl,
-      file.size,
-      file.type,
+      fileToUpload.size,
+      fileToUpload.type,
       userId,
       base64Data
     );
@@ -118,26 +187,50 @@ export async function uploadTaskFile(file, taskId, userId = null) {
       };
     }
 
-    console.log(`✅ Métadonnées enregistrées (id: ${fileRecord.data?.id}) pour le fichier "${file.name}" lié à la tâche ${taskId}`);
-
+    let successMessage = '';
+    if (wasConverted && wasOptimized) {
+      successMessage = `✅ Métadonnées enregistrées (id: ${fileRecord.data?.id}) - "${originalFileName}" converti, optimisé et lié à la tâche ${taskId}`;
+    } else if (wasConverted) {
+      successMessage = `✅ Métadonnées enregistrées (id: ${fileRecord.data?.id}) - "${originalFileName}" converti en PDF et lié à la tâche ${taskId}`;
+    } else if (wasOptimized) {
+      successMessage = `✅ Métadonnées enregistrées (id: ${fileRecord.data?.id}) - PDF optimisé et lié à la tâche ${taskId}`;
+    } else {
+      successMessage = `✅ Métadonnées enregistrées (id: ${fileRecord.data?.id}) pour le fichier "${fileToUpload.name}" lié à la tâche ${taskId}`;
+    }
+    
+    console.log(successMessage);
 
     const result = {
       success: true,
       data: {
         id: fileRecord.data?.id || null,
         task_id: taskId,
-        file_name: file.name,
+        file_name: displayName,
         file_url: publicUrl,
-        file_size: file.size,
-        file_type: file.type,
+        file_size: fileToUpload.size,
+        file_type: fileToUpload.type,
         created_at: new Date().toISOString(),
         created_by: userId,
         is_accessible: true,
-        valid_url: publicUrl
+        valid_url: publicUrl,
+        was_converted: wasConverted,
+        was_optimized: wasOptimized,
+        original_name: wasConverted ? originalFileName : undefined
       }
     };
     
-    console.log(`✅ Fichier "${file.name}" enregistré et lié à la tâche ${taskId} — ID: ${fileRecord.data?.id}`);
+    let finalMessage = '';
+    if (wasConverted && wasOptimized) {
+      finalMessage = `✅ Document Word "${originalFileName}" converti, optimisé et uploadé avec succès - ID: ${fileRecord.data?.id}`;
+    } else if (wasConverted) {
+      finalMessage = `✅ Document Word "${originalFileName}" converti en PDF et uploadé avec succès - ID: ${fileRecord.data?.id}`;
+    } else if (wasOptimized) {
+      finalMessage = `✅ PDF "${originalFileName}" optimisé et uploadé avec succès - ID: ${fileRecord.data?.id}`;
+    } else {
+      finalMessage = `✅ Fichier "${fileToUpload.name}" enregistré et lié à la tâche ${taskId} — ID: ${fileRecord.data?.id}`;
+    }
+    
+    console.log(finalMessage);
     return result;
 
   } catch (error) {
@@ -234,8 +327,15 @@ export async function ensureAttachmentsBucket(silent = false) {
       try {
         if (!silent) console.info("⚠️ Bucket 'attachments' non trouvé — appel RPC create_attachments_bucket()...");
         const { data: rpcData, error: rpcError } = await supabase.rpc('create_attachments_bucket');
+        
         if (rpcError) {
+          // Si l'erreur indique que le bucket existe déjà, c'est OK
+          if (rpcError.message?.includes('existe déjà') || rpcError.message?.includes('already exists')) {
+            if (!silent) console.log("✅ Bucket 'attachments' existe déjà (confirmé par RPC)");
+            return true;
+          }
           if (!silent) console.warn("⚠️ RPC create_attachments_bucket() échouée:", rpcError.message);
+          return false;
         } else {
           if (!silent) console.log("✅ RPC exécutée:", rpcData?.message || rpcData);
         }
@@ -249,12 +349,19 @@ export async function ensureAttachmentsBucket(silent = false) {
             return true;
           }
         }
+        
+        // Si la RPC dit que c'est OK mais qu'on ne voit pas le bucket, c'est probablement OK quand même
+        if (rpcData?.message?.includes('existe')) {
+          if (!silent) console.log("✅ Bucket 'attachments' considéré comme disponible (confirmé par RPC)");
+          return true;
+        }
       } catch (err) {
         if (!silent) console.error("❌ Erreur lors de la tentative RPC:", err?.message || err);
       }
 
-      if (!silent) console.warn("❌ Le bucket 'attachments' est introuvable et la création automatique a échoué. Créez le bucket manuellement via Supabase SQL ou dashboard.");
-      return false;
+      if (!silent) console.warn("⚠️ Le bucket 'attachments' n'est pas visible dans la liste. Vérifiez les permissions ou créez-le manuellement.");
+      // Ne pas bloquer l'upload, tenter quand même
+      return true;
     }
 
     if (!silent) {
@@ -319,4 +426,89 @@ export async function initializeStorage() {
   }
   
   return isReady;
+}
+
+/**
+ * Obtient l'URL de prévisualisation PDF pour un fichier
+ * Si le fichier est un document Word, le convertit automatiquement en PDF
+ * @param {Object} file - Objet fichier avec file_url et file_name
+ * @returns {Promise<string|null>} - URL du PDF pour prévisualisation
+ */
+export async function getConvertedPdfUrl(file) {
+  try {
+    if (!file || !file.file_url) {
+      console.error('❌ Fichier invalide pour conversion');
+      return null;
+    }
+
+    // Utiliser original_name si disponible (pour les fichiers convertis/optimisés)
+    // Sinon utiliser file_name
+    const fileName = file.original_name || file.file_name || '';
+    
+    // Extraction robuste de l'extension
+    const cleanedName = fileName.trim().replace(/[\)\]\}]+\s*$/g, '');
+    const lastDotIndex = cleanedName.lastIndexOf('.');
+    let fileExtension = '';
+    if (lastDotIndex > 0) {
+      const rawExtension = cleanedName.substring(lastDotIndex + 1);
+      fileExtension = rawExtension.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    }
+    
+    // Si c'est déjà un PDF, retourner l'URL directement
+    if (fileExtension === 'pdf') {
+      console.log('📄 Fichier déjà en PDF, pas de conversion nécessaire');
+      return file.file_url;
+    }
+
+    // Si c'est un document Word, le télécharger et le convertir
+    const isWordDoc = ['doc', 'docx'].includes(fileExtension);
+    
+    if (!isWordDoc) {
+      console.warn(`⚠️ Format ${fileExtension} non supporté pour conversion`);
+      return null;
+    }
+
+    console.log(`📄 Téléchargement du fichier Word: ${fileName}`);
+    
+    // Télécharger le fichier depuis Supabase
+    const response = await fetch(file.file_url);
+    if (!response.ok) {
+      console.error('❌ Échec du téléchargement du fichier');
+      return null;
+    }
+
+    const blob = await response.blob();
+    
+    // Utiliser uniquement le nom original sans le texte descriptif
+    // Si le nom contient "(converti et optimisé depuis XXX)", extraire le nom original
+    let cleanFileName = fileName;
+    const convertedMatch = fileName.match(/\(converti et optimisé depuis (.+?)\)$/);
+    if (convertedMatch) {
+      cleanFileName = convertedMatch[1];
+    }
+    
+    const wordFile = new File([blob], cleanFileName, { type: blob.type });
+
+    console.log(`🔄 Conversion Word → PDF: ${cleanFileName}`);
+
+    // Convertir le fichier Word en PDF
+    const { convertWordToPdf } = await import('./wordToPdfConverter');
+    const pdfFile = await convertWordToPdf(wordFile);
+
+    if (!pdfFile) {
+      console.error('❌ Échec de la conversion Word → PDF');
+      return null;
+    }
+
+    console.log(`✅ Conversion réussie: ${pdfFile.name}`);
+
+    // Créer une URL temporaire pour le PDF converti (blob URL)
+    const pdfBlobUrl = URL.createObjectURL(pdfFile);
+    
+    return pdfBlobUrl;
+
+  } catch (error) {
+    console.error('❌ Erreur lors de la conversion pour prévisualisation:', error);
+    return null;
+  }
 }

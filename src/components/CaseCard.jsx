@@ -140,13 +140,6 @@ const CaseCard = ({ case: caseData, index, onEdit, onDelete }) => {
           </div>
         )}
         
-        {caseData.startDate && (
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="w-4 h-4 text-slate-400" />
-            <span className="text-slate-300">Début: {formatDate(caseData.startDate)}</span>
-          </div>
-        )}
-        
         {caseData.budget && (
           <div className="flex items-center gap-2 text-sm">
             <DollarSign className="w-4 h-4 text-slate-400" />
@@ -170,12 +163,6 @@ const CaseCard = ({ case: caseData, index, onEdit, onDelete }) => {
         </div>
         
         <div className="flex items-center gap-4">
-          {caseData.timeSpent > 0 && (
-            <div className="flex items-center gap-1 text-xs text-slate-400">
-              <Timer className="w-3 h-3" />
-              <span>{caseData.timeSpent}h</span>
-            </div>
-          )}
           {caseData.attachments && caseData.attachments.length > 0 && (
             <div className="flex items-center gap-1 text-xs text-slate-400">
               <Paperclip className="w-3 h-3" />

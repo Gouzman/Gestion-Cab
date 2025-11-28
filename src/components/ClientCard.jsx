@@ -11,6 +11,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getClientDisplayName } from '../lib/clientUtils';
 
 const ClientCard = ({ client, index, onEdit, onDelete }) => {
   const formatDate = (dateString) => {
@@ -39,10 +40,15 @@ const ClientCard = ({ client, index, onEdit, onDelete }) => {
           </div>
           <div>
             <h3 className="text-lg font-semibold text-white print:text-black">
-              {client.firstName} {client.lastName}
+              {getClientDisplayName(client)}
             </h3>
-            {client.company && (
+            {client.type === 'company' && client.company && (
               <p className="text-slate-400 text-sm print:text-slate-600">{client.company}</p>
+            )}
+            {client.type === 'individual' && (client.firstName || client.lastName) && (
+              <p className="text-slate-400 text-sm print:text-slate-600">
+                {client.firstName} {client.lastName}
+              </p>
             )}
           </div>
         </div>

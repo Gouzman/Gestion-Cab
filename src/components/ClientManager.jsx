@@ -8,6 +8,7 @@ import ClientListItem from '@/components/ClientListItem';
 import ClientsPrintPage from '@/components/ClientsPrintPage';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getClientDisplayName } from '../lib/clientUtils';
 
 const ClientManager = () => {
   const [clients, setClients] = useState([]);
@@ -30,7 +31,7 @@ const ClientManager = () => {
       // Transformation des données de snake_case vers camelCase pour l'affichage
       const transformedClients = data.map(client => ({
         ...client,
-        name: client.name || `${client.first_name || ''} ${client.last_name || ''}`.trim(),
+        name: getClientDisplayName(client), // Utilisation de la fonction dynamique
         firstName: client.first_name,
         lastName: client.last_name,
         postalCode: client.postal_code,
@@ -42,22 +43,37 @@ const ClientManager = () => {
 
   const handleAddClient = async (clientData) => {
     try {
-      // Validation des champs obligatoires
-      if (!clientData.firstName || !clientData.lastName || !clientData.email) {
-        toast({ variant: "destructive", title: "Erreur", description: "Les champs prénom, nom et email sont obligatoires." });
-        return;
+      // Validation des champs obligatoires selon le type
+      if (clientData.type === 'company') {
+        if (!clientData.company || !clientData.email) {
+          toast({ variant: "destructive", title: "Erreur", description: "Le nom de l'entreprise et l'email sont obligatoires." });
+          return;
+        }
+      } else {
+        if (!clientData.firstName || !clientData.lastName || !clientData.email) {
+          toast({ variant: "destructive", title: "Erreur", description: "Les champs prénom, nom et email sont obligatoires." });
+          return;
+        }
       }
 
       // Log pour debug
       console.log("Payload envoyé :", clientData);
 
+      // Construction du nom d'affichage selon le type
+      let displayName;
+      if (clientData.type === 'company') {
+        displayName = clientData.company?.trim() || 'Entreprise sans nom';
+      } else {
+        displayName = `${clientData.firstName?.trim() || ''} ${clientData.lastName?.trim() || ''}`.trim() || 'Inconnu';
+      }
+
       // Transformation des noms de champs de camelCase vers snake_case pour la BDD
       const dbClientData = {
         type: clientData.type,
-        name: `${clientData.firstName.trim()} ${clientData.lastName.trim()}`,
-        first_name: clientData.firstName,
-        last_name: clientData.lastName,
-        company: clientData.company,
+        name: displayName,
+        first_name: clientData.firstName || null,
+        last_name: clientData.lastName || null,
+        company: clientData.company || null,
         email: clientData.email,
         phone: clientData.phone,
         address: clientData.address,
@@ -78,7 +94,7 @@ const ClientManager = () => {
       // Transformation des données reçues de snake_case vers camelCase pour l'affichage
       const transformedClient = {
         ...data[0],
-        name: data[0].name || `${data[0].first_name || ''} ${data[0].last_name || ''}`.trim(),
+        name: getClientDisplayName(data[0]),
         firstName: data[0].first_name,
         lastName: data[0].last_name,
         postalCode: data[0].postal_code,
@@ -96,19 +112,34 @@ const ClientManager = () => {
 
   const handleEditClient = async (clientData) => {
     try {
-      // Validation des champs obligatoires
-      if (!clientData.firstName || !clientData.lastName || !clientData.email) {
-        toast({ variant: "destructive", title: "Erreur", description: "Les champs prénom, nom et email sont obligatoires." });
-        return;
+      // Validation des champs obligatoires selon le type
+      if (clientData.type === 'company') {
+        if (!clientData.company || !clientData.email) {
+          toast({ variant: "destructive", title: "Erreur", description: "Le nom de l'entreprise et l'email sont obligatoires." });
+          return;
+        }
+      } else {
+        if (!clientData.firstName || !clientData.lastName || !clientData.email) {
+          toast({ variant: "destructive", title: "Erreur", description: "Les champs prénom, nom et email sont obligatoires." });
+          return;
+        }
+      }
+
+      // Construction du nom d'affichage selon le type
+      let displayName;
+      if (clientData.type === 'company') {
+        displayName = clientData.company?.trim() || 'Entreprise sans nom';
+      } else {
+        displayName = `${clientData.firstName?.trim() || ''} ${clientData.lastName?.trim() || ''}`.trim() || 'Inconnu';
       }
 
       // Transformation des noms de champs de camelCase vers snake_case pour la BDD
       const dbClientData = {
         type: clientData.type,
-        name: `${clientData.firstName.trim()} ${clientData.lastName.trim()}`,
-        first_name: clientData.firstName,
-        last_name: clientData.lastName,
-        company: clientData.company,
+        name: displayName,
+        first_name: clientData.firstName || null,
+        last_name: clientData.lastName || null,
+        company: clientData.company || null,
         email: clientData.email,
         phone: clientData.phone,
         address: clientData.address,
@@ -129,7 +160,7 @@ const ClientManager = () => {
       // Transformation des données reçues de snake_case vers camelCase pour l'affichage
       const transformedClient = {
         ...data[0],
-        name: data[0].name || `${data[0].first_name || ''} ${data[0].last_name || ''}`.trim(),
+        name: getClientDisplayName(data[0]),
         firstName: data[0].first_name,
         lastName: data[0].last_name,
         postalCode: data[0].postal_code,

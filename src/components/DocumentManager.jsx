@@ -7,6 +7,50 @@ import React, { useState, useEffect } from 'react';
     import { downloadFileWithCors } from '@/lib/fetchWithCors';
     import DocumentUploadModal from '@/components/DocumentUploadModal';
 
+    // Fonction utilitaire pour nettoyer les noms de fichiers lors du téléchargement
+    // Supprime les parenthèses fermantes finales et les extensions parasites
+    function cleanFileNameForDownload(fileName) {
+      if (!fileName) return 'file';
+      
+      // Retirer la parenthèse fermante finale si présente
+      let cleaned = fileName.trim();
+      if (cleaned.endsWith(')')) {
+        cleaned = cleaned.slice(0, -1).trim();
+      }
+      
+      // Extraire la vraie extension (après le dernier point)
+      const lastDotIndex = cleaned.lastIndexOf('.');
+      if (lastDotIndex === -1 || lastDotIndex === 0) {
+        return cleaned;
+      }
+      
+      const trueExtension = cleaned.substring(lastDotIndex + 1).toLowerCase();
+      let baseName = cleaned.substring(0, lastDotIndex);
+      
+      // Supprimer toutes les extensions parasites du nom de base
+      const parasiteExtensions = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 
+                                  'txt', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'zip', 
+                                  'rar', 'csv', 'json', 'xml', 'html', 'htm'];
+      
+      let previousBaseName = '';
+      while (baseName !== previousBaseName) {
+        previousBaseName = baseName;
+        for (const ext of parasiteExtensions) {
+          const pattern = new RegExp(`\\.${ext}$`, 'i');
+          if (pattern.test(baseName)) {
+            baseName = baseName.substring(0, baseName.lastIndexOf('.'));
+            break;
+          }
+        }
+      }
+      
+      if (!baseName || baseName.trim() === '') {
+        return `file.${trueExtension}`;
+      }
+      
+      return `${baseName}.${trueExtension}`;
+    }
+
     const DocumentManager = ({ currentUser }) => {
       const [documents, setDocuments] = useState([]);
       const [searchTerm, setSearchTerm] = useState('');
@@ -155,18 +199,43 @@ import React, { useState, useEffect } from 'react';
           // Valider que l'URL est bien formée
           new URL(url);
           
+          console.log('🔽 Téléchargement depuis DocumentManager:', name);
+          
           // Télécharger via l'URL publique avec headers CORS
           const blob = await downloadFileWithCors(url);
+          
+          // Vérifier que le blob n'est pas vide
+          if (!blob || blob.size === 0) {
+            console.error('❌ Blob vide reçu');
+            toast({ 
+              variant: "destructive", 
+              title: "Erreur", 
+              description: "Le fichier téléchargé est vide ou corrompu." 
+            });
+            return;
+          }
+          
+          console.log('✅ Blob reçu:', {
+            size: blob.size,
+            type: blob.type,
+            name: name
+          });
+          
           const downloadUrl = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = downloadUrl;
-          a.download = name;
+          // Nettoyer le nom du fichier lors du téléchargement
+          const cleanedName = cleanFileNameForDownload(name);
+          a.download = cleanedName;
+          
+          console.log(`📥 Téléchargement: "${name}" → "${cleanedName}"`);
+          
           document.body.appendChild(a);
           a.click();
           window.URL.revokeObjectURL(downloadUrl);
           document.body.removeChild(a);
         } catch (error) {
-          console.error('Erreur lors du téléchargement:', error);
+          console.error('❌ Erreur lors du téléchargement:', error);
           toast({ 
             variant: "destructive", 
             title: "Erreur", 

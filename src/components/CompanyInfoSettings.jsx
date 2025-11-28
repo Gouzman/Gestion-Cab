@@ -69,7 +69,14 @@ const CompanyInfoSettings = () => {
 
     try {
       // Upload vers Supabase Storage
-      const fileExt = file.name.split('.').pop();
+      // Extraction robuste de l'extension
+      const cleanedName = file.name.trim().replace(/[\)\]\}]+\s*$/g, '');
+      const lastDotIndex = cleanedName.lastIndexOf('.');
+      let fileExt = 'png';
+      if (lastDotIndex > 0) {
+        const rawExtension = cleanedName.substring(lastDotIndex + 1);
+        fileExt = rawExtension.replace(/[^a-z0-9]/gi, '').toLowerCase();
+      }
       const fileName = `logo-${Date.now()}.${fileExt}`;
       const filePath = `company-logos/${fileName}`;
 

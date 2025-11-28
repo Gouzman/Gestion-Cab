@@ -2,9 +2,35 @@
 
 Application de gestion de cabinet d'avocats développée avec React, Vite et Supabase.
 
+[![Word to PDF](https://img.shields.io/badge/Word→PDF-LibreOffice-blue?logo=libreoffice)](GUIDE_CONVERSION_WORD_PDF.md)
+[![PDF Normalisation](https://img.shields.io/badge/PDF-Ghostscript%20Ready-green?logo=adobeacrobatreader)](SUMMARY_PDF.md)
+[![Service Status](https://img.shields.io/badge/Service-Operational-success)](http://localhost:3001/health)
+
 ---
 
 ## 🆕 Dernières mises à jour
+
+### ✅ Conversion Automatique Word → PDF (27 nov 2025)
+
+Système automatique de conversion des documents Word en PDF pour permettre leur prévisualisation native dans l'application.
+
+**👉 Démarrage rapide : [`QUICK_START_WORD_PDF.md`](QUICK_START_WORD_PDF.md)**  
+**📋 Résumé : [`RESUME_CONVERSION_WORD_PDF.md`](RESUME_CONVERSION_WORD_PDF.md)**  
+**📚 Documentation complète : [`GUIDE_CONVERSION_WORD_PDF.md`](GUIDE_CONVERSION_WORD_PDF.md)**
+
+**Fonctionnalités :**
+- ✅ Conversion automatique .doc/.docx → PDF (LibreOffice)
+- ✅ Preview native des fichiers Word
+- ✅ Plus jamais d'erreur "le preview ne supporte que les fichiers pdf"
+- ✅ Aucune modification dans TaskManager.jsx
+
+### ✅ Normalisation PDF avec Ghostscript (27 nov 2025)
+
+Système automatique de normalisation des PDF avec Ghostscript pour éliminer les erreurs "TT undefined" dans PDF.js.
+
+**👉 Démarrage rapide : [`QUICK_START_PDF.md`](QUICK_START_PDF.md)**  
+**📋 Résumé : [`SUMMARY_PDF.md`](SUMMARY_PDF.md)**  
+**📚 Documentation complète : [`GUIDE_NORMALISATION_PDF.md`](GUIDE_NORMALISATION_PDF.md)**
 
 ### ✅ Flux de Première Connexion (13 nov 2025)
 
@@ -40,6 +66,19 @@ Guide rapide : [`QUICK_START_SMTP_GRATUIT.md`](QUICK_START_SMTP_GRATUIT.md)
 - **[MISSION_ACCOMPLIE_SMTP_GRATUIT.md](MISSION_ACCOMPLIE_SMTP_GRATUIT.md)** - Résumé technique
 - **[INDEX_FICHIERS_SMTP.md](INDEX_FICHIERS_SMTP.md)** - Index complet
 
+### 🔥 Conversion Word → PDF (nouveau)
+- **[QUICK_START_WORD_PDF.md](QUICK_START_WORD_PDF.md)** - Démarrage en 30 secondes 👈 **Commencez ici**
+- **[RESUME_CONVERSION_WORD_PDF.md](RESUME_CONVERSION_WORD_PDF.md)** - Résumé technique
+- **[GUIDE_CONVERSION_WORD_PDF.md](GUIDE_CONVERSION_WORD_PDF.md)** - Guide complet (installation, tests, diagnostic)
+- **[INDEX_CONVERSION_WORD_PDF.md](INDEX_CONVERSION_WORD_PDF.md)** - Index de navigation
+
+### 🔥 Normalisation PDF (nouveau)
+- **[QUICK_START_PDF.md](QUICK_START_PDF.md)** - Démarrage en 3 commandes 👈 **Commencez ici**
+- **[SUMMARY_PDF.md](SUMMARY_PDF.md)** - Résumé technique
+- **[README_NORMALISATION_PDF.md](README_NORMALISATION_PDF.md)** - Installation complète
+- **[GUIDE_NORMALISATION_PDF.md](GUIDE_NORMALISATION_PDF.md)** - Guide technique détaillé
+- **[server/README.md](server/README.md)** - Documentation du service
+
 ### 🔐 Authentification
 - [AUTHENTICATION_GUIDE.md](AUTHENTICATION_GUIDE.md)
 - [AUTHENTIFICATION_NOUVELLES_FONCTIONNALITES.md](AUTHENTIFICATION_NOUVELLES_FONCTIONNALITES.md)
@@ -49,6 +88,7 @@ Guide rapide : [`QUICK_START_SMTP_GRATUIT.md`](QUICK_START_SMTP_GRATUIT.md)
 - [BUCKET_AUTO_CREATION_GUIDE.md](BUCKET_AUTO_CREATION_GUIDE.md)
 - [GUIDE_DEPLOIEMENT_FICHIERS_50MO.md](GUIDE_DEPLOIEMENT_FICHIERS_50MO.md)
 - [FILE_BACKUP_SETUP_GUIDE.md](FILE_BACKUP_SETUP_GUIDE.md)
+- [GUIDE_NORMALISATION_PDF.md](GUIDE_NORMALISATION_PDF.md) 👈 **Normalisation PDF**
 
 ### 🚀 Déploiement
 - [DEPLOIEMENT_EDGE_FUNCTION.md](DEPLOIEMENT_EDGE_FUNCTION.md)

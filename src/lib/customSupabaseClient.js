@@ -14,6 +14,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    storageKey: 'gestion-cab-auth',
+    flowType: 'pkce',
   },
   global: {
     headers: {
@@ -29,4 +33,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       eventsPerSecond: 10,
     },
   },
+});
+
+// Gestion des erreurs d'authentification
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'TOKEN_REFRESHED') {
+    console.log('🔄 Token rafraîchi automatiquement');
+  } else if (event === 'SIGNED_OUT') {
+    console.log('👋 Utilisateur déconnecté');
+    // Nettoyer le localStorage si nécessaire
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('gestion-cab-auth');
+    }
+  } else if (event === 'USER_UPDATED') {
+    console.log('👤 Informations utilisateur mises à jour');
+  }
 });

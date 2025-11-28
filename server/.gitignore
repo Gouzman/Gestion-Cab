@@ -1,0 +1,15 @@
+# Dépendances
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+server.log
+
+# Fichiers temporaires
+temp/
+*.tmp
+
+# Environnement
+.env
+.env.local

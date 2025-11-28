@@ -32,7 +32,7 @@ const EventForm = ({ currentUser, onCancel, onEventCreated }) => {
       }
 
       // Charger les dossiers
-      const { data: casesData, error: casesError } = await supabase.from('cases').select('id, case_reference, title');
+      const { data: casesData, error: casesError } = await supabase.from('cases').select('id, title');
       if (casesError) {
         console.error('Erreur chargement dossiers:', casesError);
       } else {
@@ -237,7 +237,7 @@ const EventForm = ({ currentUser, onCancel, onEventCreated }) => {
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <label htmlFor={`case-${caseItem.id}`} className="ml-3 block text-sm text-slate-300">
-                    {caseItem.case_reference || caseItem.id} - {caseItem.title}
+                    {caseItem.id} - {caseItem.title}
                   </label>
                 </div>
               ))}

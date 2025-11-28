@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Calendar, FileText, User, Paperclip, RefreshCw, Download, ScanLine, CheckSquare, Trash2 } from 'lucide-react';
+import { X, Calendar, FileText, User, Paperclip, RefreshCw, Download, ScanLine, CheckSquare, Trash2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -213,77 +213,153 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
           );
           
           if (scannerDevice) {
+            toast({
+              title: "✅ Scanner détecté",
+              description: `Connexion à ${scannerDevice.label}...`,
+            });
+
             // Utiliser le scanner si trouvé
             const stream = await navigator.mediaDevices.getUserMedia({
-              video: { deviceId: scannerDevice.deviceId }
+              video: { 
+                deviceId: { exact: scannerDevice.deviceId },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
+              }
             });
             
             // Créer une interface de capture pour le scanner
             const video = document.createElement('video');
             video.srcObject = stream;
-            video.play();
+            video.autoplay = true;
+            video.playsInline = true;
             
-            // Interface simple de capture
+            // Interface de capture modale améliorée
             const modal = document.createElement('div');
             modal.style.cssText = `
               position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-              background: rgba(0,0,0,0.9); display: flex; flex-direction: column;
+              background: rgba(0,0,0,0.95); display: flex; flex-direction: column;
               align-items: center; justify-content: center; z-index: 9999;
             `;
             
-            video.style.cssText = `max-width: 90%; max-height: 70%; border: 2px solid #fff;`;
+            const header = document.createElement('div');
+            header.style.cssText = `
+              color: white; font-size: 24px; font-weight: bold; margin-bottom: 20px;
+            `;
+            header.textContent = `🖨️ ${scannerDevice.label}`;
+            
+            video.style.cssText = `
+              max-width: 85%; max-height: 60vh; border: 3px solid #3b82f6;
+              border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            `;
+            
+            const instructions = document.createElement('p');
+            instructions.style.cssText = `
+              color: #94a3b8; font-size: 14px; margin: 15px 0; max-width: 600px; text-align: center;
+            `;
+            instructions.textContent = 'Placez votre document dans le scanner, puis cliquez sur "Capturer" pour numériser';
+            
+            const buttonContainer = document.createElement('div');
+            buttonContainer.style.cssText = `display: flex; gap: 15px; margin-top: 20px;`;
             
             const captureBtn = document.createElement('button');
-            captureBtn.textContent = '📸 Capturer le Scan';
+            captureBtn.innerHTML = '📸 Capturer le document';
             captureBtn.style.cssText = `
-              margin: 20px; padding: 15px 30px; font-size: 18px;
-              background: #3b82f6; color: white; border: none; border-radius: 8px;
-              cursor: pointer;
+              padding: 15px 40px; font-size: 16px; font-weight: 600;
+              background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+              color: white; border: none; border-radius: 8px;
+              cursor: pointer; transition: all 0.3s ease;
+              box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
             `;
+            captureBtn.onmouseover = () => {
+              captureBtn.style.transform = 'scale(1.05)';
+              captureBtn.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.6)';
+            };
+            captureBtn.onmouseout = () => {
+              captureBtn.style.transform = 'scale(1)';
+              captureBtn.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+            };
             
             const cancelBtn = document.createElement('button');
-            cancelBtn.textContent = '❌ Annuler';
+            cancelBtn.innerHTML = '❌ Annuler';
             cancelBtn.style.cssText = `
-              margin: 10px; padding: 10px 20px; font-size: 16px;
-              background: #6b7280; color: white; border: none; border-radius: 8px;
-              cursor: pointer;
+              padding: 15px 30px; font-size: 16px; font-weight: 600;
+              background: #475569; color: white; border: none; border-radius: 8px;
+              cursor: pointer; transition: all 0.3s ease;
             `;
+            cancelBtn.onmouseover = () => { cancelBtn.style.background = '#64748b'; };
+            cancelBtn.onmouseout = () => { cancelBtn.style.background = '#475569'; };
             
+            buttonContainer.appendChild(captureBtn);
+            buttonContainer.appendChild(cancelBtn);
+            
+            modal.appendChild(header);
+            modal.appendChild(instructions);
             modal.appendChild(video);
-            modal.appendChild(captureBtn);
-            modal.appendChild(cancelBtn);
+            modal.appendChild(buttonContainer);
             document.body.appendChild(modal);
             
-            captureBtn.onclick = () => {
-              const canvas = document.createElement('canvas');
-              canvas.width = video.videoWidth;
-              canvas.height = video.videoHeight;
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(video, 0, 0);
-              
-              canvas.toBlob(async (blob) => {
-                const file = new File([blob], `scan_${Date.now()}.png`, { type: 'image/png' });
+            // Attendre que la vidéo soit prête
+            await video.play();
+            
+            captureBtn.onclick = async () => {
+              try {
+                captureBtn.disabled = true;
+                captureBtn.innerHTML = '⏳ Numérisation en cours...';
                 
-                // Si on édite une tâche existante, uploader immédiatement
-                if (task?.id) {
-                  await handleImmediateUpload([file]);
-                } else {
-                  setFormData(prev => ({
-                    ...prev,
-                    scannedFiles: [...prev.scannedFiles, file]
-                  }));
+                // Capturer l'image depuis le flux vidéo
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Convertir en blob haute qualité
+                canvas.toBlob(async (blob) => {
+                  if (!blob) {
+                    toast({
+                      variant: "destructive",
+                      title: "❌ Erreur de capture",
+                      description: "Impossible de capturer l'image. Réessayez.",
+                    });
+                    captureBtn.disabled = false;
+                    captureBtn.innerHTML = '📸 Capturer le document';
+                    return;
+                  }
+
+                  const timestamp = Date.now();
+                  const file = new File([blob], `scan_${timestamp}.png`, { type: 'image/png' });
                   
-                  toast({
-                    title: "📄 Document scanné",
-                    description: `${file.name} capturé avec succès depuis le scanner.`,
-                  });
-                }
-                
-                for (const track of stream.getTracks()) {
-                  track.stop();
-                }
-                modal.remove();
-              }, 'image/png', 0.95);
+                  // Arrêter le flux vidéo
+                  for (const track of stream.getTracks()) {
+                    track.stop();
+                  }
+                  modal.remove();
+                  
+                  // Si on édite une tâche existante, uploader immédiatement
+                  if (task?.id) {
+                    await handleImmediateUpload([file]);
+                  } else {
+                    setFormData(prev => ({
+                      ...prev,
+                      scannedFiles: [...prev.scannedFiles, file]
+                    }));
+                    
+                    toast({
+                      title: "✅ Document numérisé",
+                      description: `${file.name} capturé avec succès (${(blob.size / 1024).toFixed(0)} Ko)`,
+                    });
+                  }
+                }, 'image/png', 0.95);
+              } catch (captureError) {
+                console.error('Erreur lors de la capture:', captureError);
+                toast({
+                  variant: "destructive",
+                  title: "❌ Erreur",
+                  description: "Échec de la numérisation. Vérifiez le scanner.",
+                });
+                captureBtn.disabled = false;
+                captureBtn.innerHTML = '📸 Capturer le document';
+              }
             };
             
             cancelBtn.onclick = () => {
@@ -291,6 +367,10 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
                 track.stop();
               }
               modal.remove();
+              toast({
+                title: "Numérisation annulée",
+                description: "Opération interrompue par l'utilisateur",
+              });
             };
             
             return;
@@ -608,7 +688,7 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
               <Paperclip className="w-4 h-4 inline mr-2" />
               Pièces jointes
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Bouton 1: Choisir des fichiers (sélecteur interne) */}
               <label 
                 htmlFor="file-internal" 
@@ -625,24 +705,7 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
                 multiple 
               />
               
-              {/* Bouton 2: Importer un fichier (explorateur système) */}
-              <label 
-                htmlFor="file-external" 
-                className="cursor-pointer bg-green-600 hover:bg-green-700 border border-green-500 rounded-lg px-4 py-3 text-white font-medium flex items-center justify-center gap-2 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                Importer un fichier
-              </label>
-              <input 
-                id="file-external" 
-                type="file" 
-                className="sr-only" 
-                onChange={handleFileChange} 
-                multiple 
-                webkitdirectory="false"
-              />
-              
-              {/* Bouton 3: Numériser (scanner) */}
+              {/* Bouton 2: Numériser (scanner) */}
               <Button 
                 type="button" 
                 variant="outline" 
@@ -650,10 +713,10 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
                 className={`flex items-center justify-center gap-2 border-slate-600 text-slate-300 hover:bg-slate-700 ${
                   scannerAvailable ? 'border-green-500 text-green-300 bg-green-500/10' : ''
                 }`}
-                title={scannerAvailable ? 'Scanner détecté' : 'Sélectionner un document scanné'}
+                title={scannerAvailable ? 'Scanner détecté - Cliquez pour numériser' : 'Numériser un document'}
               >
                 <ScanLine className="w-4 h-4" />
-                {scannerAvailable ? '🖨️ Scanner' : 'Numériser'}
+                {scannerAvailable ? '🖨️ Numériser (Scanner actif)' : '🖨️ Numériser'}
               </Button>
             </div>
             <div className="mt-2 space-y-2">

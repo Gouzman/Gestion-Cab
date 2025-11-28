@@ -16,6 +16,7 @@ import React, { useState, useEffect } from 'react';
     import Settings from '@/components/Settings';
     import BillingManager from '@/components/BillingManager';
     import SessionExpiryModal from '@/components/SessionExpiryModal';
+    import PdfServiceAlert from '@/components/PdfServiceAlert';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { initializeAppInfrastructure } from '@/lib/initializeApp';
     import useAutoLogout from '@/hooks/useAutoLogout';
@@ -114,6 +115,9 @@ import React, { useState, useEffect } from 'react';
             <title>LEGALSUITE - Gestion de Cabinet Juridique</title>
             <meta name="description" content="LEGALSUITE - Solution complète de gestion pour cabinets d'avocats. Gérez vos dossiers, clients, tâches, facturation et collaborateurs efficacement." />
           </Helmet>
+          
+          {/* Alerte pour le service de normalisation PDF */}
+          <PdfServiceAlert />
           
           <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 print:bg-white">
             <div className="flex">

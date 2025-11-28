@@ -96,20 +96,6 @@ const CaseListItem = ({ case: caseData, index, onEdit, onDelete }) => {
     });
   };
 
-  const getCaseTypeLabel = (type) => {
-    const types = {
-      'civil': 'Civil',
-      'commercial': 'Commercial',
-      'penal': 'Pénal',
-      'family': 'Famille',
-      'labor': 'Travail',
-      'real-estate': 'Immobilier',
-      'intellectual': 'P. Intellectuelle',
-      'administrative': 'Administratif'
-    };
-    return types[type] || type;
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -126,9 +112,6 @@ const CaseListItem = ({ case: caseData, index, onEdit, onDelete }) => {
             </div>
             <div className="flex-1">
               <h3 className="text-white font-medium">{caseData.title || 'N/A'}</h3>
-              <div className="text-xs text-slate-400 mt-0.5">
-                {getCaseTypeLabel(caseData.case_type)}
-              </div>
             </div>
           </div>
           <div className="flex gap-1">
@@ -186,9 +169,6 @@ const CaseListItem = ({ case: caseData, index, onEdit, onDelete }) => {
           </div>
           <div>
             <div className="text-white font-medium truncate">{caseData.title || 'N/A'}</div>
-            <div className="text-xs text-slate-400">
-              {getCaseTypeLabel(caseData.case_type)}
-            </div>
           </div>
         </div>
 

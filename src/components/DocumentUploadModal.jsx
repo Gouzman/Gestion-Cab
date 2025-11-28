@@ -35,7 +35,7 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
     const fetchCases = async () => {
       const { data, error } = await supabase
         .from('cases')
-        .select('id, case_reference, title')
+        .select('id, title')
         .order('created_at', { ascending: false });
       
       if (error) {
@@ -53,8 +53,8 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
       setFilteredCases(cases);
     } else {
       const filtered = cases.filter(c => 
-        (c.case_reference && c.case_reference.toLowerCase().includes(caseSearchTerm.toLowerCase())) ||
-        (c.title && c.title.toLowerCase().includes(caseSearchTerm.toLowerCase()))
+        (c.title && c.title.toLowerCase().includes(caseSearchTerm.toLowerCase())) ||
+        (c.id && c.id.toLowerCase().includes(caseSearchTerm.toLowerCase()))
       );
       setFilteredCases(filtered);
     }
@@ -284,7 +284,7 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
                   <option value="">Choisir un dossier...</option>
                   {filteredCases.map(c => (
                     <option key={c.id} value={c.id}>
-                      {c.case_reference || c.id} - {c.title}
+                      {c.id} - {c.title}
                     </option>
                   ))}
                 </select>
