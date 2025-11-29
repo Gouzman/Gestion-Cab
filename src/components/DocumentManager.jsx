@@ -146,14 +146,34 @@ import React, { useState, useEffect, useMemo } from 'react';
               }
             }
 
+            // Récupérer les infos des utilisateurs pour l'auteur
+            const userIds = [...new Set(filesData.filter(f => f.created_by).map(f => f.created_by))];
+            let usersMap = {};
+            
+            if (userIds.length > 0) {
+              const { data: usersData } = await supabase
+                .from('profiles')
+                .select('id, name')
+                .in('id', userIds);
+              
+              if (usersData) {
+                usersMap = usersData.reduce((acc, u) => {
+                  acc[u.id] = u.name;
+                  return acc;
+                }, {});
+              }
+            }
+
             // Transformer les données pour l'affichage avec enrichissement case/task
             const allDocs = (filesData || []).map(file => {
               let linkedTo = 'Documents sans tâche';
               let source = 'standalone';
+              let caseTitle = null;
               
               if (file.task_id && file.case_id) {
                 // Document lié à une tâche ET un dossier - afficher la tâche
                 linkedTo = tasksMap[file.task_id] || 'Tâche supprimée';
+                caseTitle = casesMap[file.case_id] || null;
                 source = 'task-and-case';
               } else if (file.task_id) {
                 // Document lié uniquement à une tâche
@@ -162,6 +182,7 @@ import React, { useState, useEffect, useMemo } from 'react';
               } else if (file.case_id) {
                 // Document lié uniquement à un dossier
                 linkedTo = casesMap[file.case_id] || 'Dossier supprimé';
+                caseTitle = casesMap[file.case_id] || null;
                 source = 'case';
               }
               
@@ -173,11 +194,14 @@ import React, { useState, useEffect, useMemo } from 'react';
                 taskTitle: linkedTo,
                 taskId: file.task_id,
                 caseId: file.case_id,
+                caseTitle: caseTitle,
                 source: source,
                 date: file.created_at,
                 fileType: file.file_type,
                 fileSize: file.file_size,
                 category: file.document_category,
+                createdBy: file.created_by,
+                createdByName: usersMap[file.created_by] || null,
                 timeSpent: 0,
               };
             });
@@ -472,98 +496,141 @@ import React, { useState, useEffect, useMemo } from 'react';
                 </div>
               </div>
 
-              {/* Liste des documents */}
-              {taskGroups.length === 0 ? (
+              {/* Liste des documents en grille de cartes */}
+              {filteredDocuments.length === 0 ? (
                 <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-12 text-center">
                   <FileArchive className="w-16 h-16 text-slate-600 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-slate-400 mb-2">Aucun document trouvé</h3>
                   <p className="text-slate-500">Les fichiers que vous joignez aux tâches apparaîtront ici.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-              {taskGroups.map((group, groupIndex) => (
-                <motion.div
-                  key={group.taskId || groupIndex}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: groupIndex * 0.1 }}
-                  className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden"
-                >
-                  {/* En-tête de la tâche */}
-                  <div className="bg-slate-700/50 px-6 py-4 border-b border-slate-600">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                      <FileArchive className="w-5 h-5 text-blue-400" />
-                      {group.taskTitle}
-                      <span className="text-sm font-normal text-slate-400 ml-2">
-                        ({group.files.length} document{group.files.length > 1 ? 's' : ''})
-                      </span>
-                    </h3>
-                  </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {filteredDocuments.map((doc, index) => {
+                    // Tronquer le nom si trop long
+                    const truncateName = (name) => {
+                      if (!name) return 'Document';
+                      if (name.length <= 40) return name;
+                      const lastDot = name.lastIndexOf('.');
+                      if (lastDot === -1) return name.substring(0, 37) + '...';
+                      const ext = name.substring(lastDot);
+                      const baseName = name.substring(0, lastDot);
+                      return baseName.substring(0, 37 - ext.length) + '...' + ext;
+                    };
 
-                  {/* Liste des fichiers */}
-                  <table className="w-full text-left">
-                    <thead className="bg-slate-700/30">
-                      <tr>
-                        <th className="p-4 text-slate-300 font-medium">Nom du Fichier</th>
-                        <th className="p-4 text-slate-300 font-medium">Date d'ajout</th>
-                        <th className="p-4 text-slate-300 font-medium text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {group.files.map((doc, fileIndex) => (
-                        <motion.tr
-                          key={doc.id}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: fileIndex * 0.05 }}
-                          className="border-b border-slate-800 hover:bg-slate-700/20"
-                        >
-                          <td className="p-4">
-                            <div className="text-white font-medium">{doc.name}</div>
-                            <div className={`text-xs mt-1 flex items-center gap-1 ${doc.category ? 'text-blue-400' : 'text-slate-500'}`}>
-                              <span className={`inline-block w-2 h-2 rounded-full ${doc.category ? 'bg-blue-400' : 'bg-slate-500'}`}></span>
-                              {doc.category || 'Non classé'}
+                    // Formater la taille du fichier
+                    const formatFileSize = (bytes) => {
+                      if (!bytes) return '';
+                      const mo = bytes / (1024 * 1024);
+                      const ko = bytes / 1024;
+                      return mo >= 1 ? `${mo.toFixed(1)} Mo` : `${Math.round(ko)} Ko`;
+                    };
+
+                    // Récupérer la référence du dossier
+                    const getCaseReference = () => {
+                      if (doc.caseTitle) {
+                        return doc.caseTitle;
+                      }
+                      if (doc.taskId) {
+                        return doc.taskTitle; // Afficher le nom de la tâche
+                      }
+                      return 'Sans dossier';
+                    };
+
+                    return (
+                      <motion.div
+                        key={doc.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl overflow-hidden hover:border-slate-600/50 transition-all"
+                      >
+                        {/* En-tête de la carte avec icône */}
+                        <div className="p-6 pb-4">
+                          <div className="flex items-start gap-4">
+                            {/* Icône de document */}
+                            <div className="flex-shrink-0">
+                              <div className="w-14 h-14 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                                <FileText className="w-7 h-7 text-blue-400" />
+                              </div>
                             </div>
-                          </td>
-                          <td className="p-4 text-slate-400">{new Date(doc.date).toLocaleDateString('fr-FR')}</td>
-                          <td className="p-4 text-right">
-                            <div className="flex gap-2 justify-end">
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handlePreview(doc.url)} 
-                                title="Aperçu"
-                              >
-                                <Eye className="w-4 h-4 text-slate-400" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handleDownload(doc.url, doc.name)} 
-                                title="Télécharger"
-                              >
-                                <Download className="w-4 h-4 text-slate-400" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => {
-                                  if (window.confirm(`Voulez-vous vraiment supprimer le document "${doc.name}" ?\n\nCette action est irréversible.`)) {
-                                    handleDelete(doc);
-                                  }
-                                }} 
-                                title="Supprimer"
-                              >
-                                <Trash2 className="w-4 h-4 text-red-500" />
-                              </Button>
+                            
+                            {/* Informations du document */}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-base font-bold text-white mb-2 break-words" title={doc.name}>
+                                {truncateName(doc.name)}
+                              </h3>
+                              
+                              {/* Référence du dossier/tâche */}
+                              <div className="text-sm text-slate-400 mb-1 font-medium">
+                                {getCaseReference()}
+                              </div>
+                              
+                              {/* Métadonnées */}
+                              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 mb-2">
+                                {doc.fileSize && (
+                                  <span>{formatFileSize(doc.fileSize)}</span>
+                                )}
+                                <span>•</span>
+                                <span>{new Date(doc.date).toLocaleDateString('fr-FR')}</span>
+                              </div>
+                              
+                              {/* Auteur */}
+                              {doc.createdByName && (
+                                <div className="text-xs text-slate-500">
+                                  Par {doc.createdByName}
+                                </div>
+                              )}
+                              
+                              {/* Catégorie si disponible */}
+                              {doc.category && (
+                                <div className="mt-2">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 text-blue-400 text-xs rounded-full">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                                    {doc.category}
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                          </td>
-                        </motion.tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </motion.div>
-              ))}
+                          </div>
+                        </div>
+
+                        {/* Pied de carte : Actions */}
+                        <div className="px-6 py-4 bg-slate-700/30 border-t border-slate-700/50 flex items-center justify-center gap-2">
+                          <Button 
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePreview(doc.url)} 
+                            className="text-slate-300 hover:text-white hover:bg-slate-600/50"
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            Voir
+                          </Button>
+                          <Button 
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownload(doc.url, doc.name)} 
+                            className="text-slate-300 hover:text-white hover:bg-slate-600/50"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Télécharger
+                          </Button>
+                          <Button 
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (window.confirm(`Voulez-vous vraiment supprimer le document "${doc.name}" ?\n\nCette action est irréversible.`)) {
+                                handleDelete(doc);
+                              }
+                            }} 
+                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Supprimer
+                          </Button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </div>
