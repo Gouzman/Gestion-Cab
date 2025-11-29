@@ -56,14 +56,18 @@ const TransferToTaskModal = ({ document, onCancel, onTransferred }) => {
 
     try {
       // Vérifier si le document n'est pas déjà lié à cette tâche
-      const { data: existingLink } = await supabase
+      const { data: existingLinks, error: checkError } = await supabase
         .from('tasks_files')
         .select('id')
         .eq('file_url', document.url)
-        .eq('task_id', selectedTaskId)
-        .single();
+        .eq('task_id', selectedTaskId);
 
-      if (existingLink) {
+      if (checkError) {
+        console.error('Erreur vérification lien existant:', checkError);
+        throw new Error(`Erreur de vérification: ${checkError.message}`);
+      }
+
+      if (existingLinks && existingLinks.length > 0) {
         toast({
           title: 'Déjà lié',
           description: 'Ce document est déjà lié à cette tâche.'
@@ -73,23 +77,32 @@ const TransferToTaskModal = ({ document, onCancel, onTransferred }) => {
       }
 
       // Créer le lien entre le document et la tâche
-      const { error: insertError } = await supabase
+      const payload = {
+        task_id: selectedTaskId,
+        case_id: document.caseId,
+        file_name: document.name,
+        file_url: document.url,
+        file_size: document.fileSize || null,
+        file_type: document.fileType || null,
+        document_category: document.category || null,
+        visible_for_assigned: visibleForAssigned,
+        created_by: document.createdBy || null
+      };
+
+      console.log('📤 Transfert du document:', payload);
+
+      const { data: insertedData, error: insertError } = await supabase
         .from('tasks_files')
-        .insert({
-          task_id: selectedTaskId,
-          case_id: document.caseId,
-          file_name: document.name,
-          file_url: document.url,
-          file_size: document.fileSize,
-          file_type: document.fileType,
-          document_category: document.category,
-          visible_for_assigned: visibleForAssigned,
-          created_by: document.createdBy
-        });
+        .insert(payload)
+        .select('*')
+        .single();
 
       if (insertError) {
-        throw insertError;
+        console.error('Erreur insertion:', insertError);
+        throw new Error(`Erreur d'insertion: ${insertError.message}`);
       }
+
+      console.log('✅ Document transféré avec succès:', insertedData);
 
       toast({
         title: '✅ Document transféré',
@@ -99,11 +112,11 @@ const TransferToTaskModal = ({ document, onCancel, onTransferred }) => {
       onTransferred();
       onCancel();
     } catch (error) {
-      console.error('Erreur lors du transfert:', error);
+      console.error('❌ Erreur lors du transfert:', error);
       toast({
         variant: 'destructive',
-        title: 'Erreur',
-        description: 'Impossible de transférer le document.'
+        title: 'Erreur de transfert',
+        description: error.message || 'Impossible de transférer le document.'
       });
     } finally {
       setLoading(false);
