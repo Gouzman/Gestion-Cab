@@ -604,8 +604,10 @@ const TaskManager = ({ currentUser }) => {
         try {
           // Vérifier si les fichiers sont des objets {file, category} ou des File simples
           const hasCategories = filesToUpload.length > 0 && 
-                                filesToUpload[0].file && 
-                                filesToUpload[0].category;
+                                filesToUpload[0] &&
+                                typeof filesToUpload[0] === 'object' &&
+                                'file' in filesToUpload[0] && 
+                                'category' in filesToUpload[0];
           
           let uploadResult;
           
@@ -620,12 +622,13 @@ const TaskManager = ({ currentUser }) => {
             
             uploadResult = await uploadMultipleTaskFilesWithCategory(files, data.id, currentUser?.id, firstCategory);
           } else {
-            // Ancienne méthode sans catégorie
+            // Ancienne méthode sans catégorie (fichiers directs)
             const { uploadMultipleTaskFiles } = await import('@/lib/uploadManager');
             uploadResult = await uploadMultipleTaskFiles(filesToUpload, data.id, currentUser?.id);
           }
 
           if (uploadResult.success) {
+            console.log('📊 Mise à jour taskFiles pour tâche', data.id, 'avec', uploadResult.data.length, 'fichier(s):', uploadResult.data);
             setTaskFiles((prev) => ({
               ...prev,
               [data.id]: uploadResult.data,
@@ -759,8 +762,10 @@ const TaskManager = ({ currentUser }) => {
         try {
           // Vérifier si les fichiers ont des catégories
           const hasCategories = filesToUpload.length > 0 && 
-                                filesToUpload[0].file && 
-                                filesToUpload[0].category;
+                                filesToUpload[0] && 
+                                typeof filesToUpload[0] === 'object' &&
+                                'file' in filesToUpload[0] &&
+                                'category' in filesToUpload[0];
           
           let uploadResult;
           

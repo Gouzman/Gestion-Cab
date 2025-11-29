@@ -10,9 +10,10 @@ import { isPdfDocument, optimizePdfForViewer, checkPdfCompatibility } from "@/li
  * @param {File} file - Le fichier à uploader
  * @param {string} taskId - ID de la tâche
  * @param {string} userId - ID de l'utilisateur (optionnel)
+ * @param {string} documentCategory - Catégorie du document (optionnel)
  * @returns {Promise<Object>} Résultat de l'upload avec URL publique
  */
-export async function uploadTaskFile(file, taskId, userId = null) {
+export async function uploadTaskFile(file, taskId, userId = null, documentCategory = null) {
   try {
     // 0. VALIDATION CRITIQUE : Vérifier que taskId est valide et existe dans la table tasks
     if (!taskId || typeof taskId !== 'string' || taskId.trim() === '') {
@@ -254,10 +255,12 @@ export async function uploadTaskFile(file, taskId, userId = null) {
         file_url: publicUrl,
         file_size: fileToUpload.size,
         file_type: fileToUpload.type,
+        document_category: documentCategory, // 📁 Catégorie du document
         created_at: new Date().toISOString(),
         created_by: userId,
         is_accessible: true,
         valid_url: publicUrl,
+        source: 'tasks_files', // Marquer la source
         was_converted: wasConverted,
         was_optimized: wasOptimized,
         original_name: wasConverted ? originalFileName : undefined
@@ -370,6 +373,12 @@ export async function uploadMultipleTaskFilesWithCategory(files, taskId, userId 
     errors: results.errors,
     summary: `${results.successes.length}/${results.total} fichiers uploadés avec catégorie "${documentCategory}"`
   };
+  
+  console.log('📊 uploadMultipleTaskFilesWithCategory résultat:', {
+    success: finalResult.success,
+    filesCount: finalResult.data.length,
+    files: finalResult.data.map(f => ({ name: f.file_name, category: f.document_category }))
+  });
   
   if (finalResult.success && results.successes.length > 0) {
     console.log(`✅ ${results.successes.length} fichier(s) uploadé(s) avec catégorie "${documentCategory}"`);
