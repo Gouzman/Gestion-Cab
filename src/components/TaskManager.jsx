@@ -347,7 +347,7 @@ const TaskManager = ({ currentUser }) => {
 
   const fetchTasks = async () => {
     const selectColumns =
-      'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment';
+      'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment,cases(title)';
     let query = supabase.from('tasks').select(selectColumns);
     if (!isAdmin && currentUser?.id) {
       query = query.eq('assigned_to_id', currentUser.id);
@@ -356,7 +356,12 @@ const TaskManager = ({ currentUser }) => {
     if (error) {
       toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de charger les tâches." });
     } else {
-      setTasks(data);
+      // Transformer les données pour extraire le case_title de la relation
+      const transformedData = (data || []).map(task => ({
+        ...task,
+        case_title: task.cases?.title || null
+      }));
+      setTasks(transformedData);
 
       try {
         const taskIds = data.map((t) => t.id);
@@ -547,7 +552,7 @@ const TaskManager = ({ currentUser }) => {
       .from('tasks')
       .insert([cleanPayload])
       .select(
-        'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_ids,assigned_to_name,visible_by_ids,case_id,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment'
+        'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_ids,assigned_to_name,visible_by_ids,case_id,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment,cases(title)'
       )
       .single();
 
@@ -559,6 +564,12 @@ const TaskManager = ({ currentUser }) => {
       });
       return;
     }
+
+    // Ajouter le case_title depuis la relation
+    const taskWithTitle = {
+      ...data,
+      case_title: data.cases?.title || null
+    };
 
     if (filesToUpload && filesToUpload.length > 0) {
       (async () => {
@@ -640,17 +651,17 @@ const TaskManager = ({ currentUser }) => {
       });
     }
 
-    setTasks([data, ...tasks]);
+    setTasks([taskWithTitle, ...tasks]);
 
     if (filesToUpload && filesToUpload.length > 0) {
-      setExpandedTaskId(data.id);
+      setExpandedTaskId(taskWithTitle.id);
     }
 
-    if (data.deadline) {
+    if (taskWithTitle.deadline) {
       const taskCreatedEvent = new CustomEvent('taskCreated', {
         detail: {
-          task: data,
-          deadline: data.deadline,
+          task: taskWithTitle,
+          deadline: taskWithTitle.deadline,
         },
       });
       window.dispatchEvent(taskCreatedEvent);
@@ -754,7 +765,7 @@ const TaskManager = ({ currentUser }) => {
       .update(updatePayload)
       .eq('id', editingTask.id)
       .select(
-        'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_ids,assigned_to_name,visible_by_ids,case_id,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment'
+        'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_ids,assigned_to_name,visible_by_ids,case_id,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment,cases(title)'
       )
       .single();
 
@@ -765,15 +776,21 @@ const TaskManager = ({ currentUser }) => {
         description: `Impossible de modifier la tâche: ${error.message}`,
       });
     } else {
-      setTasks(tasks.map((t) => (t.id === editingTask.id ? data : t)));
+      // Ajouter le case_title depuis la relation
+      const taskWithTitle = {
+        ...data,
+        case_title: data.cases?.title || null
+      };
+      
+      setTasks(tasks.map((t) => (t.id === editingTask.id ? taskWithTitle : t)));
       setEditingTask(null);
       setActiveTab('suivi');
 
-      if (data?.deadline) {
+      if (taskWithTitle?.deadline) {
         const taskUpdatedEvent = new CustomEvent('taskUpdated', {
           detail: {
-            task: data,
-            deadline: data.deadline,
+            task: taskWithTitle,
+            deadline: taskWithTitle.deadline,
           },
         });
         window.dispatchEvent(taskUpdatedEvent);
@@ -832,7 +849,7 @@ const TaskManager = ({ currentUser }) => {
       .update(updatePayload)
       .eq('id', taskId)
       .select(
-        'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_ids,assigned_to_name,visible_by_ids,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment'
+        'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_ids,assigned_to_name,visible_by_ids,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment,cases(title)'
       );
     if (error) {
       if (!isSilent) {
@@ -843,7 +860,13 @@ const TaskManager = ({ currentUser }) => {
         });
       }
     } else {
-      setTasks(tasks.map((t) => (t.id === taskId ? data[0] : t)));
+      // Ajouter le case_title depuis la relation
+      const taskWithTitle = {
+        ...data[0],
+        case_title: data[0].cases?.title || null
+      };
+      
+      setTasks(tasks.map((t) => (t.id === taskId ? taskWithTitle : t)));
       if (!isSilent) {
         toast({ title: '✅ Statut mis à jour' });
       }
@@ -1112,10 +1135,12 @@ const TaskManager = ({ currentUser }) => {
                     </div>
 
                     <div className="lg:col-span-2">
-                      {task.case_id ? (
+                      {task.case_title ? (
                         <div className="flex items-center gap-2 text-xs text-slate-300">
                           <FileText className="w-3 h-3 text-slate-400" />
-                          <span className="font-mono">{getCaseNumber(task.case_id)}</span>
+                          <span className="truncate max-w-[200px]" title={task.case_title}>
+                            {task.case_title}
+                          </span>
                         </div>
                       ) : (
                         <span className="text-xs text-slate-500">Aucun dossier</span>
@@ -1254,11 +1279,19 @@ const TaskManager = ({ currentUser }) => {
                                     >
                                       {iconEmoji} {truncateFileName(file.file_name)}
                                     </span>
-                                    {file.file_size && (
-                                      <span className="text-xs text-slate-500">
-                                        {Math.round(file.file_size / 1024)} KB
-                                      </span>
-                                    )}
+                                    <div className="flex items-center gap-2 mt-1">
+                                      {file.file_size && (
+                                        <span className="text-xs text-slate-500">
+                                          {Math.round(file.file_size / 1024)} KB
+                                        </span>
+                                      )}
+                                      {file.document_category && (
+                                        <span className="text-xs text-blue-400 flex items-center gap-1">
+                                          <span className="inline-block w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+                                          {file.document_category}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
 
