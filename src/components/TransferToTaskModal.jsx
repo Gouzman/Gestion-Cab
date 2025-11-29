@@ -85,9 +85,27 @@ const TransferToTaskModal = ({ document, onCancel, onTransferred }) => {
         file_size: document.fileSize || null,
         file_type: document.fileType || null,
         document_category: document.category || null,
-        visible_for_assigned: visibleForAssigned,
         created_by: document.createdBy || null
       };
+
+      // Ajouter visible_for_assigned seulement si la colonne existe
+      // (pour compatibilité avec bases qui n'ont pas encore la migration)
+      try {
+        // Tester si la colonne existe en faisant une requête de test
+        const { error: testError } = await supabase
+          .from('tasks_files')
+          .select('visible_for_assigned')
+          .limit(1);
+        
+        if (!testError) {
+          // La colonne existe, on peut l'ajouter au payload
+          payload.visible_for_assigned = visibleForAssigned;
+        } else {
+          console.warn('⚠️ Colonne visible_for_assigned non disponible, insertion sans ce champ');
+        }
+      } catch (e) {
+        console.warn('⚠️ Impossible de vérifier la colonne visible_for_assigned');
+      }
 
       console.log('📤 Transfert du document:', payload);
 
