@@ -347,7 +347,7 @@ const TaskManager = ({ currentUser }) => {
 
   const fetchTasks = async () => {
     const selectColumns =
-      'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment,cases(title)';
+      'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment';
     let query = supabase.from('tasks').select(selectColumns);
     if (!isAdmin && currentUser?.id) {
       query = query.eq('assigned_to_id', currentUser.id);
@@ -356,10 +356,28 @@ const TaskManager = ({ currentUser }) => {
     if (error) {
       toast({ variant: 'destructive', title: 'Erreur', description: "Impossible de charger les tâches." });
     } else {
-      // Transformer les données pour extraire le case_title de la relation
+      // Récupérer les titres des dossiers associés
+      const caseIds = [...new Set((data || []).filter(t => t.case_id).map(t => t.case_id))];
+      let caseTitlesMap = {};
+      
+      if (caseIds.length > 0) {
+        const { data: casesData } = await supabase
+          .from('cases')
+          .select('id, title')
+          .in('id', caseIds);
+        
+        if (casesData) {
+          caseTitlesMap = casesData.reduce((acc, c) => {
+            acc[c.id] = c.title;
+            return acc;
+          }, {});
+        }
+      }
+      
+      // Transformer les données pour ajouter le case_title
       const transformedData = (data || []).map(task => ({
         ...task,
-        case_title: task.cases?.title || null
+        case_title: task.case_id ? (caseTitlesMap[task.case_id] || null) : null
       }));
       setTasks(transformedData);
 
@@ -552,7 +570,7 @@ const TaskManager = ({ currentUser }) => {
       .from('tasks')
       .insert([cleanPayload])
       .select(
-        'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_ids,assigned_to_name,visible_by_ids,case_id,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment,cases(title)'
+        'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_ids,assigned_to_name,visible_by_ids,case_id,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment'
       )
       .single();
 
@@ -565,10 +583,20 @@ const TaskManager = ({ currentUser }) => {
       return;
     }
 
-    // Ajouter le case_title depuis la relation
+    // Récupérer le titre du dossier si case_id existe
+    let caseTitle = null;
+    if (data.case_id) {
+      const { data: caseData } = await supabase
+        .from('cases')
+        .select('title')
+        .eq('id', data.case_id)
+        .single();
+      caseTitle = caseData?.title || null;
+    }
+
     const taskWithTitle = {
       ...data,
-      case_title: data.cases?.title || null
+      case_title: caseTitle
     };
 
     if (filesToUpload && filesToUpload.length > 0) {
@@ -765,7 +793,7 @@ const TaskManager = ({ currentUser }) => {
       .update(updatePayload)
       .eq('id', editingTask.id)
       .select(
-        'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_ids,assigned_to_name,visible_by_ids,case_id,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment,cases(title)'
+        'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_ids,assigned_to_name,visible_by_ids,case_id,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment'
       )
       .single();
 
@@ -776,10 +804,20 @@ const TaskManager = ({ currentUser }) => {
         description: `Impossible de modifier la tâche: ${error.message}`,
       });
     } else {
-      // Ajouter le case_title depuis la relation
+      // Récupérer le titre du dossier si case_id existe
+      let caseTitle = null;
+      if (data.case_id) {
+        const { data: caseData } = await supabase
+          .from('cases')
+          .select('title')
+          .eq('id', data.case_id)
+          .single();
+        caseTitle = caseData?.title || null;
+      }
+
       const taskWithTitle = {
         ...data,
-        case_title: data.cases?.title || null
+        case_title: caseTitle
       };
       
       setTasks(tasks.map((t) => (t.id === editingTask.id ? taskWithTitle : t)));
@@ -849,7 +887,7 @@ const TaskManager = ({ currentUser }) => {
       .update(updatePayload)
       .eq('id', taskId)
       .select(
-        'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_ids,assigned_to_name,visible_by_ids,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment,cases(title)'
+        'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_ids,assigned_to_name,visible_by_ids,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment'
       );
     if (error) {
       if (!isSilent) {
@@ -860,10 +898,20 @@ const TaskManager = ({ currentUser }) => {
         });
       }
     } else {
-      // Ajouter le case_title depuis la relation
+      // Récupérer le titre du dossier si case_id existe
+      let caseTitle = null;
+      if (data[0].case_id) {
+        const { data: caseData } = await supabase
+          .from('cases')
+          .select('title')
+          .eq('id', data[0].case_id)
+          .single();
+        caseTitle = caseData?.title || null;
+      }
+
       const taskWithTitle = {
         ...data[0],
-        case_title: data[0].cases?.title || null
+        case_title: caseTitle
       };
       
       setTasks(tasks.map((t) => (t.id === taskId ? taskWithTitle : t)));
