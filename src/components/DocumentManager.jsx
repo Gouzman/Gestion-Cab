@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
     import { motion } from 'framer-motion';
-    import { FileArchive, Search, Eye, Trash2, Download, Upload, FolderOpen, FileText, Folder } from 'lucide-react';
+    import { FileArchive, Search, Eye, Trash2, Download, Upload, FolderOpen, FileText, Folder, Share2 } from 'lucide-react';
     import { Button } from '@/components/ui/button';
     import { toast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
     import { downloadFileWithCors } from '@/lib/fetchWithCors';
     import DocumentUploadModal from '@/components/DocumentUploadModal';
+    import TransferToTaskModal from '@/components/TransferToTaskModal';
 
     // Fonction utilitaire pour nettoyer les noms de fichiers lors du téléchargement
     // Supprime les parenthèses fermantes finales et les extensions parasites
@@ -56,6 +57,8 @@ import React, { useState, useEffect, useMemo } from 'react';
       const [searchTerm, setSearchTerm] = useState('');
       const [profile, setProfile] = useState(null);
       const [showUploadModal, setShowUploadModal] = useState(false);
+      const [showTransferModal, setShowTransferModal] = useState(false);
+      const [selectedDocumentForTransfer, setSelectedDocumentForTransfer] = useState(null);
       const [selectedCategory, setSelectedCategory] = useState('all');
 
       const isAdmin = currentUser && (currentUser.function === 'Gerant' || currentUser.function === 'Associe Emerite' || (currentUser.role && currentUser.role.toLowerCase() === 'admin'));
@@ -576,26 +579,38 @@ import React, { useState, useEffect, useMemo } from 'react';
                               
                               {/* Auteur */}
                               {doc.createdByName && (
-                                <div className="text-xs text-slate-500">
+                                <div className="text-xs text-slate-500 mb-2">
                                   Par {doc.createdByName}
                                 </div>
                               )}
                               
-                              {/* Catégorie si disponible */}
-                              {doc.category && (
-                                <div className="mt-2">
+                              {/* Badges : Catégorie et Statut */}
+                              <div className="flex flex-wrap items-center gap-2 mt-2">
+                                {doc.category && (
                                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 text-blue-400 text-xs rounded-full">
                                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
                                     {doc.category}
                                   </span>
-                                </div>
-                              )}
+                                )}
+                                {doc.taskId && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 text-green-400 text-xs rounded-full">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                                    Lié à une tâche
+                                  </span>
+                                )}
+                                {doc.caseId && !doc.taskId && (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-600/30 text-slate-400 text-xs rounded-full">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                    Document de dossier
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
 
                         {/* Pied de carte : Actions */}
-                        <div className="px-6 py-4 bg-slate-700/30 border-t border-slate-700/50 flex items-center justify-center gap-2">
+                        <div className="px-6 py-4 bg-slate-700/30 border-t border-slate-700/50 flex items-center justify-center gap-2 flex-wrap">
                           <Button 
                             variant="ghost"
                             size="sm"
@@ -614,6 +629,20 @@ import React, { useState, useEffect, useMemo } from 'react';
                             <Download className="w-4 h-4 mr-2" />
                             Télécharger
                           </Button>
+                          {doc.caseId && (
+                            <Button 
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedDocumentForTransfer(doc);
+                                setShowTransferModal(true);
+                              }} 
+                              className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                            >
+                              <Share2 className="w-4 h-4 mr-2" />
+                              Transférer vers tâche
+                            </Button>
+                          )}
                           <Button 
                             variant="ghost"
                             size="sm"
@@ -636,12 +665,27 @@ import React, { useState, useEffect, useMemo } from 'react';
             </div>
           </div>
 
-          {/* Modal de transfert de document */}
+          {/* Modal d'upload de document */}
           {showUploadModal && (
             <DocumentUploadModal
               currentUser={currentUser}
               onCancel={() => setShowUploadModal(false)}
               onDocumentUploaded={handleDocumentUploaded}
+            />
+          )}
+
+          {/* Modal de transfert vers tâche */}
+          {showTransferModal && selectedDocumentForTransfer && (
+            <TransferToTaskModal
+              document={selectedDocumentForTransfer}
+              onCancel={() => {
+                setShowTransferModal(false);
+                setSelectedDocumentForTransfer(null);
+              }}
+              onTransferred={() => {
+                // Recharger les documents pour afficher les changements
+                window.location.reload();
+              }}
             />
           )}
         </div>

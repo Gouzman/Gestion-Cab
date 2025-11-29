@@ -17,40 +17,14 @@ BEGIN
     FROM public.tasks
     WHERE id = NEW.task_id;
     
-    -- Si la tâche est liée à un dossier
-    IF v_case_id IS NOT NULL THEN
-      -- Vérifier si le document n'est pas déjà lié au dossier (éviter doublons)
-      IF NOT EXISTS (
-        SELECT 1 FROM public.tasks_files
-        WHERE file_url = NEW.file_url
-        AND case_id = v_case_id
-        AND task_id IS NULL
-      ) THEN
-        -- Créer une entrée de référence dans tasks_files pour le dossier
-        INSERT INTO public.tasks_files (
-          case_id,
-          task_id,
-          file_name,
-          file_url,
-          file_size,
-          file_type,
-          document_category,
-          created_by,
-          created_at
-        ) VALUES (
-          v_case_id,
-          NULL, -- Document général du dossier
-          NEW.file_name,
-          NEW.file_url,
-          NEW.file_size,
-          NEW.file_type,
-          NEW.document_category,
-          NEW.created_by,
-          NEW.created_at
-        );
-        
-        RAISE NOTICE '✅ Document "%" synchronisé vers le dossier %', NEW.file_name, v_case_id;
-      END IF;
+    -- Si la tâche est liée à un dossier et que case_id n'est pas déjà rempli
+    IF v_case_id IS NOT NULL AND NEW.case_id IS NULL THEN
+      -- Mettre à jour le case_id du document pour établir le lien
+      UPDATE public.tasks_files
+      SET case_id = v_case_id
+      WHERE id = NEW.id;
+      
+      RAISE NOTICE '✅ Document "%" lié au dossier % via la tâche', NEW.file_name, v_case_id;
     END IF;
   END IF;
   
