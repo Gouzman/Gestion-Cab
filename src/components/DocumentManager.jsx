@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
     import { motion } from 'framer-motion';
-    import { FileArchive, Search, Eye, Trash2, Download, Upload, FolderOpen } from 'lucide-react';
+    import { FileArchive, Search, Eye, Trash2, Download, Upload, FolderOpen, FileText, Folder } from 'lucide-react';
     import { Button } from '@/components/ui/button';
     import { toast } from '@/components/ui/use-toast';
     import { supabase } from '@/lib/customSupabaseClient';
@@ -62,14 +62,14 @@ import React, { useState, useEffect } from 'react';
 
       // Catégories de documents
       const categories = [
-        { id: 'all', label: 'Tous les documents', icon: FileArchive },
-        { id: 'contrat', label: 'Contrats', icon: FileArchive },
-        { id: 'facture', label: 'Factures', icon: FileArchive },
-        { id: 'correspondance', label: 'Correspondance', icon: FileArchive },
-        { id: 'procedure', label: 'Procédures', icon: FileArchive },
-        { id: 'piece_identite', label: 'Pièces d\'identité', icon: FileArchive },
-        { id: 'attestation', label: 'Attestations', icon: FileArchive },
-        { id: 'autre', label: 'Autres', icon: FileArchive }
+        { id: 'all', label: 'Tous les documents', icon: FileText },
+        { id: 'contrat', label: 'Contrats', icon: Folder },
+        { id: 'facture', label: 'Factures', icon: Folder },
+        { id: 'correspondance', label: 'Correspondance', icon: Folder },
+        { id: 'procedure', label: 'Procédures', icon: Folder },
+        { id: 'piece_identite', label: 'Pièces d\'identité', icon: Folder },
+        { id: 'attestation', label: 'Attestations', icon: Folder },
+        { id: 'autre', label: 'Autres', icon: Folder }
       ];
 
       useEffect(() => {
@@ -345,6 +345,18 @@ import React, { useState, useEffect } from 'react';
         setDocuments(prev => [newDocument, ...prev]);
       };
 
+      // Calcul des compteurs de documents par catégorie
+      const categoryCounts = useMemo(() => {
+        const counts = { all: documents.length };
+        
+        documents.forEach(doc => {
+          const category = doc.category || 'autre';
+          counts[category] = (counts[category] || 0) + 1;
+        });
+        
+        return counts;
+      }, [documents]);
+
       const filteredDocuments = documents.filter(doc => {
         const matchesSearch = (doc.name && doc.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
           (doc.taskTitle && doc.taskTitle.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -395,20 +407,34 @@ import React, { useState, useEffect } from 'react';
                   Catégories
                 </h3>
                 <div className="space-y-2">
-                  {categories.map(cat => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setSelectedCategory(cat.id)}
-                      className={`w-full text-left px-4 py-3 rounded-lg transition-colors flex items-center gap-3 ${
-                        selectedCategory === cat.id
-                          ? 'bg-blue-600 text-white'
-                          : 'text-slate-300 hover:bg-slate-700/50'
-                      }`}
-                    >
-                      <cat.icon className="w-4 h-4" />
-                      <span className="text-sm font-medium">{cat.label}</span>
-                    </button>
-                  ))}
+                  {categories.map(cat => {
+                    const count = categoryCounts[cat.id] || 0;
+                    const isActive = selectedCategory === cat.id;
+                    
+                    return (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.id)}
+                        className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 flex items-center justify-between gap-3 ${
+                          isActive
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 font-semibold'
+                            : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <cat.icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                          <span className="text-sm">{cat.label}</span>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          isActive 
+                            ? 'bg-white/20 text-white font-semibold' 
+                            : 'bg-slate-700/50 text-slate-400'
+                        }`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -475,7 +501,15 @@ import React, { useState, useEffect } from 'react';
                           transition={{ delay: fileIndex * 0.05 }}
                           className="border-b border-slate-800 hover:bg-slate-700/20"
                         >
-                          <td className="p-4 text-white font-medium">{doc.name}</td>
+                          <td className="p-4">
+                            <div className="text-white font-medium">{doc.name}</div>
+                            {doc.category && (
+                              <div className="text-xs text-blue-400 mt-1 flex items-center gap-1">
+                                <span className="inline-block w-2 h-2 bg-blue-400 rounded-full"></span>
+                                {doc.category}
+                              </div>
+                            )}
+                          </td>
                           <td className="p-4 text-slate-400">{new Date(doc.date).toLocaleDateString('fr-FR')}</td>
                           <td className="p-4 text-right">
                             <div className="flex gap-2 justify-end">
