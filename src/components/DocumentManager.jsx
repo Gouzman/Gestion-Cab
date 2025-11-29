@@ -63,13 +63,12 @@ import React, { useState, useEffect, useMemo } from 'react';
       // Catégories de documents
       const categories = [
         { id: 'all', label: 'Tous les documents', icon: FileText },
-        { id: 'contrat', label: 'Contrats', icon: Folder },
-        { id: 'facture', label: 'Factures', icon: Folder },
-        { id: 'correspondance', label: 'Correspondance', icon: Folder },
-        { id: 'procedure', label: 'Procédures', icon: Folder },
-        { id: 'piece_identite', label: 'Pièces d\'identité', icon: Folder },
-        { id: 'attestation', label: 'Attestations', icon: Folder },
-        { id: 'autre', label: 'Autres', icon: Folder }
+        { id: 'Documents de suivi et facturation', label: 'Documents de suivi et facturation', icon: Folder },
+        { id: 'Pièces', label: 'Pièces', icon: Folder },
+        { id: 'Écritures', label: 'Écritures', icon: Folder },
+        { id: 'Courriers', label: 'Courriers', icon: Folder },
+        { id: 'Observations et notes', label: 'Observations et notes', icon: Folder },
+        { id: 'Autres', label: 'Autres', icon: Folder }
       ];
 
       useEffect(() => {
@@ -149,20 +148,20 @@ import React, { useState, useEffect, useMemo } from 'react';
 
             // Transformer les données pour l'affichage avec enrichissement case/task
             const allDocs = (filesData || []).map(file => {
-              let linkedTo = 'Document indépendant';
+              let linkedTo = 'Documents sans tâche';
               let source = 'standalone';
               
               if (file.task_id && file.case_id) {
-                // Document lié à une tâche ET un dossier
-                linkedTo = `Tâche: ${tasksMap[file.task_id] || 'Supprimée'} | Dossier: ${casesMap[file.case_id] || 'Supprimé'}`;
+                // Document lié à une tâche ET un dossier - afficher la tâche
+                linkedTo = tasksMap[file.task_id] || 'Tâche supprimée';
                 source = 'task-and-case';
               } else if (file.task_id) {
                 // Document lié uniquement à une tâche
-                linkedTo = `Tâche: ${tasksMap[file.task_id] || 'Tâche supprimée'}`;
+                linkedTo = tasksMap[file.task_id] || 'Tâche supprimée';
                 source = 'task';
               } else if (file.case_id) {
                 // Document lié uniquement à un dossier
-                linkedTo = `Dossier: ${casesMap[file.case_id] || 'Dossier supprimé'}`;
+                linkedTo = casesMap[file.case_id] || 'Dossier supprimé';
                 source = 'case';
               }
               
@@ -349,19 +348,37 @@ import React, { useState, useEffect, useMemo } from 'react';
       const categoryCounts = useMemo(() => {
         const counts = { all: documents.length };
         
+        // Initialiser tous les compteurs à 0
+        categories.forEach(cat => {
+          if (cat.id !== 'all') {
+            counts[cat.id] = 0;
+          }
+        });
+        
+        // Compter les documents par catégorie
         documents.forEach(doc => {
-          const category = doc.category || 'autre';
-          counts[category] = (counts[category] || 0) + 1;
+          if (doc.category) {
+            counts[doc.category] = (counts[doc.category] || 0) + 1;
+          } else {
+            // Documents sans catégorie vont dans "Autres"
+            counts['Autres'] = (counts['Autres'] || 0) + 1;
+          }
         });
         
         return counts;
-      }, [documents]);
+      }, [documents, categories]);
 
       const filteredDocuments = documents.filter(doc => {
         const matchesSearch = (doc.name && doc.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
           (doc.taskTitle && doc.taskTitle.toLowerCase().includes(searchTerm.toLowerCase()));
         
         if (selectedCategory === 'all') return matchesSearch;
+        
+        // Filtre spécial pour "Autres" : documents sans catégorie ou avec catégorie "Autres"
+        if (selectedCategory === 'Autres') {
+          return matchesSearch && (!doc.category || doc.category === 'Autres');
+        }
+        
         return matchesSearch && doc.category === selectedCategory;
       });
 
@@ -501,8 +518,8 @@ import React, { useState, useEffect, useMemo } from 'react';
                           transition={{ delay: fileIndex * 0.05 }}
                           className="border-b border-slate-800 hover:bg-slate-700/20"
                         >
-                          <td className=\"p-4\">
-                            <div className=\"text-white font-medium\">{doc.name}</div>
+                          <td className="p-4">
+                            <div className="text-white font-medium">{doc.name}</div>
                             <div className={`text-xs mt-1 flex items-center gap-1 ${doc.category ? 'text-blue-400' : 'text-slate-500'}`}>
                               <span className={`inline-block w-2 h-2 rounded-full ${doc.category ? 'bg-blue-400' : 'bg-slate-500'}`}></span>
                               {doc.category || 'Non classé'}

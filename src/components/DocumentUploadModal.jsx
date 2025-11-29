@@ -17,15 +17,14 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Catégories de documents (cohérence avec DocumentManager)
+  // Catégories de documents (cohérence avec DocumentManager et TaskForm)
   const categories = [
-    { value: 'contrat', label: 'Contrats' },
-    { value: 'facture', label: 'Factures' },
-    { value: 'correspondance', label: 'Correspondance' },
-    { value: 'procedure', label: 'Procédures' },
-    { value: 'piece_identite', label: 'Pièces d\'identité' },
-    { value: 'attestation', label: 'Attestations' },
-    { value: 'autre', label: 'Autres' }
+    { value: 'Documents de suivi et facturation', label: 'Documents de suivi et facturation' },
+    { value: 'Pièces', label: 'Pièces' },
+    { value: 'Écritures', label: 'Écritures' },
+    { value: 'Courriers', label: 'Courriers' },
+    { value: 'Observations et notes', label: 'Observations et notes' },
+    { value: 'Autres', label: 'Autres' }
   ];
 
   useEffect(() => {

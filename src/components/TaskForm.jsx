@@ -34,7 +34,8 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
     { value: 'Pièces', label: 'Pièces' },
     { value: 'Écritures', label: 'Écritures' },
     { value: 'Courriers', label: 'Courriers' },
-    { value: 'Observations et notes', label: 'Observations et notes' }
+    { value: 'Observations et notes', label: 'Observations et notes' },
+    { value: 'Autres', label: 'Autres' }
   ];
   const [showReassign, setShowReassign] = useState(false);
   const [availableSubTasks, setAvailableSubTasks] = useState([]);
