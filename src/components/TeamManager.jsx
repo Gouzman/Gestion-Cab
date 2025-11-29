@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
-import { Plus, Search, Briefcase, User } from 'lucide-react';
+import { Plus, Search, Briefcase, User, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import TeamMemberForm from '@/components/TeamMemberForm';
@@ -55,70 +55,114 @@ const TeamManager = ({ currentUser }) => {
         return;
       }
 
-      // Créer d'abord un compte Auth temporaire pour obtenir un ID valide
-      // On utilise un mot de passe temporaire qui sera remplacé lors de la première connexion
-      const tempPassword = `Temp${Date.now()}!${Math.random().toString(36).substring(7)}`;
+      // ============================================
+      // NOUVEAU SYSTÈME : Créer l'utilisateur complet via RPC
+      // ============================================
       
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: memberData.email,
-        password: tempPassword,
-        options: {
-          emailRedirectTo: undefined,
-          data: {
-            name: memberData.name,
-            role: memberData.role,
-            function: memberData.function,
-            email_confirm: false // Désactiver la confirmation d'email
-          }
-        }
+      // 1. Générer le mot de passe initial via RPC
+      const { data: passwordData, error: passwordError } = await supabase.rpc('generate_initial_password');
+      
+      if (passwordError || !passwordData) {
+        console.error('Erreur génération mot de passe:', passwordError);
+        toast({ 
+          variant: "destructive", 
+          title: "Erreur", 
+          description: "Impossible de générer le mot de passe initial." 
+        });
+        return;
+      }
+
+      const initialPassword = passwordData;
+
+      // 2. Créer le compte Auth + Profile en une seule opération via RPC
+      // Cette fonction utilise SECURITY DEFINER pour créer le compte sans envoyer d'email
+      const { data: createResult, error: createError } = await supabase.rpc('create_auth_user_with_profile', {
+        user_email: memberData.email,
+        user_password: initialPassword,
+        user_name: memberData.name,
+        user_role: memberData.role,
+        user_function: memberData.function
       });
 
-      if (authError || !authData.user) {
-        console.error('Erreur création compte Auth:', authError);
+      if (createError || !createResult?.success) {
+        console.error('Erreur création utilisateur:', createError || createResult?.error);
         toast({ 
           variant: "destructive", 
           title: "Erreur", 
-          description: "Impossible de créer le compte utilisateur." 
+          description: createResult?.error || "Impossible de créer le compte utilisateur." 
         });
         return;
       }
 
-      // Utiliser la fonction RPC pour créer le collaborateur (contourne RLS)
-      const { data: rpcResult, error: rpcError } = await supabase
-        .rpc('create_collaborator', {
-          user_id: authData.user.id,
-          user_email: memberData.email,
-          user_name: memberData.name,
-          user_role: memberData.role,
-          user_function: memberData.function
-        });
-
-      if (rpcError) {
-        console.error('Erreur RPC create_collaborator:', rpcError);
-        toast({ 
-          variant: "destructive", 
-          title: "Erreur", 
-          description: "Impossible de créer le profil utilisateur." 
-        });
-        return;
-      }
-
-      if (!rpcResult?.success) {
-        console.error('Erreur création collaborateur:', rpcResult?.error);
-        toast({ 
-          variant: "destructive", 
-          title: "Erreur", 
-          description: rpcResult?.error || "Erreur lors de la création." 
-        });
-        return;
-      }
-      
+      // 3. Afficher le mot de passe initial à l'admin avec bouton de copie
       fetchMembers();
       setShowForm(false);
       
+      // Composant de copie pour le toast
+      const CopyPasswordButton = () => {
+        const [copied, setCopied] = React.useState(false);
+        
+        const handleCopy = async () => {
+          try {
+            await navigator.clipboard.writeText(initialPassword);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          } catch (err) {
+            // Fallback pour les anciens navigateurs
+            const textArea = document.createElement('textarea');
+            textArea.value = initialPassword;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }
+        };
+
+        return (
+          <button
+            onClick={handleCopy}
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-slate-600 hover:bg-slate-500 transition-colors"
+            type="button"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3 h-3" />
+                <span>Copié !</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3 h-3" />
+                <span>Copier</span>
+              </>
+            )}
+          </button>
+        );
+      };
+      
       toast({ 
-        title: "✅ Collaborateur ajouté", 
-        description: `${memberData.name} a été créé. Il pourra définir son mot de passe lors de sa première connexion avec l'email : ${memberData.email}` 
+        title: "✅ Collaborateur créé avec succès", 
+        description: (
+          <div className="space-y-2">
+            <p><strong>Nom :</strong> {memberData.name}</p>
+            <p><strong>Email :</strong> {memberData.email}</p>
+            <div className="bg-slate-700 p-2 rounded mt-2">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <strong>Mot de passe initial :</strong>
+                <CopyPasswordButton />
+              </div>
+              <code className="text-green-400 text-sm block">{initialPassword}</code>
+            </div>
+            <p className="text-xs text-slate-400 mt-2">
+              ⚠️ Transmettez ce mot de passe à l'utilisateur.<br />
+              Il devra le changer lors de sa première connexion.
+            </p>
+          </div>
+        ),
+        duration: 15000, // 15 secondes pour copier le mot de passe
       });
     } catch (error) {
       console.error('Erreur inattendue:', error);

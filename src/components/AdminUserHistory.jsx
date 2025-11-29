@@ -4,7 +4,7 @@ import { History, Users, Eye, EyeOff, Shield, Key, User, Mail, Clock } from 'luc
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/InternalAuthContext';
 
 const AdminUserHistory = () => {
   const { user } = useAuth();

@@ -233,13 +233,54 @@ export default defineConfig({
 		},
 	},
 	build: {
+		// Optimisations pour la production
+		minify: 'terser',
+		terserOptions: {
+			compress: {
+				drop_console: true, // Supprimer les console.log en production
+				drop_debugger: true,
+			},
+		},
+		
+		// Code splitting avancé
 		rollupOptions: {
 			external: [
 				'@babel/parser',
 				'@babel/traverse',
 				'@babel/generator',
 				'@babel/types'
-			]
-		}
+			],
+			output: {
+				// Séparation automatique des chunks pour optimiser le cache
+				manualChunks(id) {
+					// React core
+					if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+						return 'vendor-react';
+					}
+					// Supabase
+					if (id.includes('@supabase/supabase-js')) {
+						return 'vendor-supabase';
+					}
+					// UI libraries
+					if (id.includes('framer-motion') || id.includes('lucide-react') || id.includes('@radix-ui')) {
+						return 'vendor-ui';
+					}
+					// Charts
+					if (id.includes('recharts') || id.includes('d3-')) {
+						return 'vendor-charts';
+					}
+					// Sentry isolé
+					if (id.includes('@sentry/react')) {
+						return 'sentry';
+					}
+				},
+			},
+		},
+		
+		// Augmenter la limite d'avertissement de taille de chunk
+		chunkSizeWarningLimit: 600, // 600 KB (Reports fait 427 KB après gzip)
+		
+		// Optimisation du source map
+		sourcemap: false, // Désactiver en prod sauf si Sentry configuré avec uploads
 	}
 });

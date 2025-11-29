@@ -2,10 +2,11 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import rateLimit from 'express-rate-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,15 +14,64 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3001;
 
-// Configuration CORS pour accepter les requêtes depuis le front-end
-// Accepte localhost sur tous les ports (3000, 3002, etc.)
+// Configuration Rate Limiting pour sécuriser les endpoints sensibles
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // Max 50 requêtes par IP par fenêtre de 15 min
+  message: { 
+    success: false, 
+    error: 'Trop de requêtes, veuillez réessayer dans 15 minutes' 
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const healthLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 30, // Max 30 health checks par IP par minute
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Configuration CORS stricte avec whitelist pour production
+// En développement : accepte localhost
+// En production : uniquement le domaine configuré
+const getAllowedOrigins = () => {
+  const isDev = process.env.NODE_ENV !== 'production';
+  
+  if (isDev) {
+    // Mode développement : accepter localhost sur tous les ports
+    return (origin) => {
+      return !origin || 
+             /^http:\/\/localhost(:\d+)?$/.test(origin) || 
+             /^http:\/\/\[::\](:\d+)?$/.test(origin) ||
+             /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
+    };
+  } else {
+    // Mode production : whitelist stricte
+    // TODO: Remplacer par votre domaine de production réel
+    const productionOrigins = [
+      process.env.VITE_PRODUCTION_URL, // Ex: https://gestion-cab.votredomaine.com
+    ].filter(Boolean); // Enlève les valeurs undefined
+    
+    return (origin) => {
+      // Pas d'origin = même origine (autorisé)
+      if (!origin) return true;
+      // Vérifier si l'origin est dans la whitelist
+      return productionOrigins.includes(origin);
+    };
+  }
+};
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Accepter toutes les requêtes depuis localhost (n'importe quel port)
-    if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin) || /^http:\/\/\[::\](:\d+)?$/.test(origin)) {
+    const isAllowed = getAllowedOrigins();
+    
+    if (isAllowed(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Non autorisé par CORS'));
+      console.warn(`🚫 Origine bloquée par CORS: ${origin}`);
+      callback(new Error('Non autorisé par CORS - origine non whitelistée'));
     }
   },
   methods: ['POST', 'GET', 'OPTIONS'],
@@ -68,11 +118,12 @@ const upload = multer({
 /**
  * Normalise un PDF avec Ghostscript
  * Intègre toutes les polices et rend le PDF compatible avec PDF.js
+ * Utilise spawn() au lieu de exec() pour éviter les injections shell
  */
 async function normalizePdf(inputPath) {
   const outputPath = inputPath.replace('.pdf', '_normalized.pdf');
 
-  // Commande Ghostscript pour normaliser le PDF
+  // Arguments Ghostscript pour normaliser le PDF
   // -dNOPAUSE : Ne pas faire de pause entre les pages
   // -dBATCH : Traiter les fichiers et quitter
   // -sDEVICE=pdfwrite : Sortie en PDF
@@ -80,17 +131,35 @@ async function normalizePdf(inputPath) {
   // -dSubsetFonts=false : Ne pas créer de sous-ensembles de polices
   // -dPDFSETTINGS=/prepress : Qualité maximale pour impression professionnelle
   // -dCompatibilityLevel=1.4 : Version PDF 1.4 (compatible avec PDF.js)
-  const cmd = `gs -dNOPAUSE -dBATCH -sDEVICE=pdfwrite \
-    -dEmbedAllFonts=true -dSubsetFonts=false \
-    -dPDFSETTINGS=/prepress -dCompatibilityLevel=1.4 \
-    -sOutputFile="${outputPath}" "${inputPath}"`;
+  const args = [
+    '-dNOPAUSE',
+    '-dBATCH',
+    '-sDEVICE=pdfwrite',
+    '-dEmbedAllFonts=true',
+    '-dSubsetFonts=false',
+    '-dPDFSETTINGS=/prepress',
+    '-dCompatibilityLevel=1.4',
+    `-sOutputFile=${outputPath}`,
+    inputPath
+  ];
 
   return new Promise((resolve, reject) => {
-    exec(cmd, async (error, stdout, stderr) => {
-      if (error) {
-        console.error('❌ Erreur Ghostscript:', error.message);
-        console.error('stderr:', stderr);
-        reject(new Error('Erreur Ghostscript: ' + error.message));
+    const gs = spawn('gs', args);
+    let stderr = '';
+
+    gs.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    gs.on('error', (error) => {
+      console.error('❌ Erreur Ghostscript:', error.message);
+      reject(new Error('Ghostscript non trouvé ou erreur de lancement: ' + error.message));
+    });
+
+    gs.on('close', async (code) => {
+      if (code !== 0) {
+        console.error('❌ Erreur Ghostscript (code ' + code + '):', stderr);
+        reject(new Error('Erreur Ghostscript (code ' + code + ')'));
         return;
       }
 
@@ -117,24 +186,43 @@ async function normalizePdf(inputPath) {
 
 /**
  * Convertit un document Word en PDF avec LibreOffice
+ * Utilise spawn() au lieu de exec() pour éviter les injections shell
  */
 async function convertWordToPdf(inputPath) {
   const outputDir = path.dirname(inputPath);
   const baseName = path.basename(inputPath, path.extname(inputPath));
   const outputPath = path.join(outputDir, `${baseName}.pdf`);
 
-  // Commande LibreOffice pour convertir Word → PDF
+  // Arguments LibreOffice pour convertir Word → PDF
   // --headless : Mode sans interface graphique
   // --convert-to pdf : Convertir au format PDF
   // --outdir : Dossier de sortie
-  const cmd = `soffice --headless --convert-to pdf --outdir "${outputDir}" "${inputPath}"`;
+  const args = [
+    '--headless',
+    '--convert-to',
+    'pdf',
+    '--outdir',
+    outputDir,
+    inputPath
+  ];
 
   return new Promise((resolve, reject) => {
-    exec(cmd, async (error, stdout, stderr) => {
-      if (error) {
-        console.error('❌ Erreur LibreOffice:', error.message);
-        console.error('stderr:', stderr);
-        reject(new Error('Erreur LibreOffice: ' + error.message));
+    const soffice = spawn('soffice', args);
+    let stderr = '';
+
+    soffice.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    soffice.on('error', (error) => {
+      console.error('❌ Erreur LibreOffice:', error.message);
+      reject(new Error('LibreOffice non trouvé ou erreur de lancement: ' + error.message));
+    });
+
+    soffice.on('close', async (code) => {
+      if (code !== 0) {
+        console.error('❌ Erreur LibreOffice (code ' + code + '):', stderr);
+        reject(new Error('Erreur LibreOffice (code ' + code + ')'));
         return;
       }
 
@@ -161,8 +249,9 @@ async function convertWordToPdf(inputPath) {
 
 /**
  * Endpoint de conversion Word → PDF
+ * Protégé par rate limiting
  */
-app.post('/convert-word-to-pdf', upload.single('file'), async (req, res) => {
+app.post('/convert-word-to-pdf', uploadLimiter, upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ 
       success: false, 
@@ -230,8 +319,9 @@ app.post('/convert-word-to-pdf', upload.single('file'), async (req, res) => {
 
 /**
  * Endpoint de normalisation PDF
+ * Protégé par rate limiting
  */
-app.post('/normalize-pdf', upload.single('file'), async (req, res) => {
+app.post('/normalize-pdf', uploadLimiter, upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ 
       success: false, 
@@ -286,45 +376,71 @@ app.post('/normalize-pdf', upload.single('file'), async (req, res) => {
 
 /**
  * Endpoint de health check
+ * Protégé par rate limiting
+ * Utilise spawn() au lieu de exec() pour éviter les injections shell
  */
-app.get('/health', (req, res) => {
-  // Vérifier que Ghostscript et LibreOffice sont disponibles
-  exec('gs --version', (gsError, gsStdout) => {
-    exec('soffice --version', (loError, loStdout) => {
-      const gsAvailable = !gsError;
-      const loAvailable = !loError;
-      
-      if (!gsAvailable && !loAvailable) {
-        res.status(500).json({
-          status: 'error',
-          message: 'Ghostscript et LibreOffice non disponibles',
-          ghostscript: gsError?.message,
-          libreoffice: loError?.message
-        });
-      } else if (!gsAvailable) {
-        res.status(500).json({
-          status: 'partial',
-          message: 'Ghostscript non disponible (conversion Word → PDF disponible)',
-          libreoffice_version: loStdout.trim(),
-          ghostscript: gsError?.message
-        });
-      } else if (!loAvailable) {
-        res.status(500).json({
-          status: 'partial',
-          message: 'LibreOffice non disponible (normalisation PDF disponible)',
-          ghostscript_version: gsStdout.trim(),
-          libreoffice: loError?.message
-        });
+app.get('/health', healthLimiter, async (req, res) => {
+  // Vérifier que Ghostscript est disponible
+  const checkGs = () => new Promise((resolve) => {
+    const gs = spawn('gs', ['--version']);
+    let stdout = '';
+    gs.stdout.on('data', (data) => { stdout += data.toString(); });
+    gs.on('error', () => resolve({ available: false, error: 'Ghostscript non trouvé' }));
+    gs.on('close', (code) => {
+      if (code === 0) {
+        resolve({ available: true, version: stdout.trim() });
       } else {
-        res.json({
-          status: 'ok',
-          ghostscript_version: gsStdout.trim(),
-          libreoffice_version: loStdout.trim(),
-          message: 'Service de conversion et normalisation opérationnel'
-        });
+        resolve({ available: false, error: 'Erreur Ghostscript' });
       }
     });
   });
+
+  // Vérifier que LibreOffice est disponible
+  const checkLo = () => new Promise((resolve) => {
+    const soffice = spawn('soffice', ['--version']);
+    let stdout = '';
+    soffice.stdout.on('data', (data) => { stdout += data.toString(); });
+    soffice.on('error', () => resolve({ available: false, error: 'LibreOffice non trouvé' }));
+    soffice.on('close', (code) => {
+      if (code === 0) {
+        resolve({ available: true, version: stdout.trim() });
+      } else {
+        resolve({ available: false, error: 'Erreur LibreOffice' });
+      }
+    });
+  });
+
+  const [gsResult, loResult] = await Promise.all([checkGs(), checkLo()]);
+
+  if (!gsResult.available && !loResult.available) {
+    res.status(500).json({
+      status: 'error',
+      message: 'Ghostscript et LibreOffice non disponibles',
+      ghostscript: gsResult.error,
+      libreoffice: loResult.error
+    });
+  } else if (!gsResult.available) {
+    res.status(500).json({
+      status: 'partial',
+      message: 'Ghostscript non disponible (conversion Word → PDF disponible)',
+      libreoffice_version: loResult.version,
+      ghostscript: gsResult.error
+    });
+  } else if (!loResult.available) {
+    res.status(500).json({
+      status: 'partial',
+      message: 'LibreOffice non disponible (normalisation PDF disponible)',
+      ghostscript_version: gsResult.version,
+      libreoffice: loResult.error
+    });
+  } else {
+    res.json({
+      status: 'ok',
+      ghostscript_version: gsResult.version,
+      libreoffice_version: loResult.version,
+      message: 'Service de conversion et normalisation opérationnel'
+    });
+  }
 });
 
 /**
@@ -356,26 +472,36 @@ setInterval(async () => {
 app.listen(PORT, () => {
   console.log(`🚀 Service de conversion et normalisation démarré sur le port ${PORT}`);
   console.log(`📍 Endpoints:`);
-  console.log(`   - Word → PDF: http://localhost:${PORT}/convert-word-to-pdf`);
-  console.log(`   - Normalisation PDF: http://localhost:${PORT}/normalize-pdf`);
-  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  console.log(`   - Word → PDF: http://localhost:${PORT}/convert-word-to-pdf (rate limited: 50/15min)`);
+  console.log(`   - Normalisation PDF: http://localhost:${PORT}/normalize-pdf (rate limited: 50/15min)`);
+  console.log(`🏥 Health check: http://localhost:${PORT}/health (rate limited: 30/min)`);
+  console.log(`🔒 Sécurité: spawn() utilisé + rate limiting activé`);
   
-  // Vérifier Ghostscript et LibreOffice au démarrage
-  exec('gs --version', (gsError, gsStdout) => {
-    if (gsError) {
-      console.error('❌ ERREUR: Ghostscript non trouvé!');
-      console.error('Installez Ghostscript: brew install ghostscript');
-    } else {
-      console.log(`✅ Ghostscript ${gsStdout.trim()} détecté`);
+  // Vérifier Ghostscript au démarrage (avec spawn)
+  const gs = spawn('gs', ['--version']);
+  let gsVersion = '';
+  gs.stdout.on('data', (data) => { gsVersion += data.toString(); });
+  gs.on('error', () => {
+    console.error('❌ ERREUR: Ghostscript non trouvé!');
+    console.error('Installez Ghostscript: brew install ghostscript');
+  });
+  gs.on('close', (code) => {
+    if (code === 0) {
+      console.log(`✅ Ghostscript ${gsVersion.trim()} détecté`);
     }
   });
   
-  exec('soffice --version', (loError, loStdout) => {
-    if (loError) {
-      console.error('❌ ERREUR: LibreOffice non trouvé!');
-      console.error('Installez LibreOffice: brew install --cask libreoffice');
-    } else {
-      console.log(`✅ LibreOffice ${loStdout.trim()} détecté`);
+  // Vérifier LibreOffice au démarrage (avec spawn)
+  const soffice = spawn('soffice', ['--version']);
+  let loVersion = '';
+  soffice.stdout.on('data', (data) => { loVersion += data.toString(); });
+  soffice.on('error', () => {
+    console.error('❌ ERREUR: LibreOffice non trouvé!');
+    console.error('Installez LibreOffice: brew install --cask libreoffice');
+  });
+  soffice.on('close', (code) => {
+    if (code === 0) {
+      console.log(`✅ LibreOffice ${loVersion.trim()} détecté`);
     }
   });
 });

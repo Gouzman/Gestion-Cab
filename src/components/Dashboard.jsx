@@ -63,8 +63,9 @@ const Dashboard = ({ currentUser, setActiveView }) => {
       
       // If not admin, fetch only user-specific data
       if (!isAdmin) {
-        tasksQuery = tasksQuery.eq('assigned_to_id', currentUser.id);
-        casesQuery = casesQuery.eq('assigned_to_id', currentUser.id);
+        // Filtrer les tâches : assigned_to_id OU dans assigned_to_ids OU dans visible_by_ids
+        tasksQuery = tasksQuery.or(`assigned_to_id.eq.${currentUser.id},assigned_to_ids.cs.{${currentUser.id}},visible_by_ids.cs.{${currentUser.id}}`);
+        casesQuery = casesQuery.eq('assigned_to', currentUser.id);
       }
 
       const [

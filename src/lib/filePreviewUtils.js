@@ -408,3 +408,6 @@ export function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// Export de la fonction de nettoyage des noms de fichiers pour réutilisation
+export { cleanFileNameForDownload };
+

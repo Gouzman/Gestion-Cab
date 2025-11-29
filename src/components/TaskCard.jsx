@@ -22,50 +22,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/customSupabaseClient';
 import { toast } from '@/components/ui/use-toast';
 import { ensureAttachmentsBucket } from '@/lib/uploadManager';
-
-// Fonction utilitaire pour nettoyer les noms de fichiers lors du téléchargement
-// Supprime les parenthèses fermantes finales et les extensions parasites
-function cleanFileNameForDownload(fileName) {
-  if (!fileName) return 'file';
-  
-  // Retirer la parenthèse fermante finale si présente
-  let cleaned = fileName.trim();
-  if (cleaned.endsWith(')')) {
-    cleaned = cleaned.slice(0, -1).trim();
-  }
-  
-  // Extraire la vraie extension (après le dernier point)
-  const lastDotIndex = cleaned.lastIndexOf('.');
-  if (lastDotIndex === -1 || lastDotIndex === 0) {
-    return cleaned;
-  }
-  
-  const trueExtension = cleaned.substring(lastDotIndex + 1).toLowerCase();
-  let baseName = cleaned.substring(0, lastDotIndex);
-  
-  // Supprimer toutes les extensions parasites du nom de base
-  const parasiteExtensions = ['pdf', 'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 
-                              'txt', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'zip', 
-                              'rar', 'csv', 'json', 'xml', 'html', 'htm'];
-  
-  let previousBaseName = '';
-  while (baseName !== previousBaseName) {
-    previousBaseName = baseName;
-    for (const ext of parasiteExtensions) {
-      const pattern = new RegExp(`\\.${ext}$`, 'i');
-      if (pattern.test(baseName)) {
-        baseName = baseName.substring(0, baseName.lastIndexOf('.'));
-        break;
-      }
-    }
-  }
-  
-  if (!baseName || baseName.trim() === '') {
-    return `file.${trueExtension}`;
-  }
-  
-  return `${baseName}.${trueExtension}`;
-}
+import { cleanFileNameForDownload } from '@/lib/filePreviewUtils';
 
 const TaskCard = ({ task, index, onEdit, onDelete, onStatusChange, currentUser }) => {
   // Marquer automatiquement la tâche comme "Vue" si l'assigné la consulte

@@ -4,7 +4,7 @@ import { Tag, Save, Plus, Trash2, Shield, History, Building2, Menu as MenuIcon, 
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useAuth } from '@/contexts/InternalAuthContext';
 import PermissionManager from '@/components/PermissionManager';
 import AdminUserHistory from '@/components/AdminUserHistory';
 import CompanyInfoSettings from '@/components/CompanyInfoSettings';

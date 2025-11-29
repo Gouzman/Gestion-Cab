@@ -19,25 +19,26 @@ import React, { useState, useEffect, useCallback } from 'react';
       const isAdmin = isGerantOrAssocie || (currentUser.role && currentUser.role.toLowerCase() === 'admin');
 
       const fetchData = useCallback(async () => {
-        const fetchTasks = async () => {
-          let query = supabase.from('tasks').select('id, title, deadline, priority, created_at').not('deadline', 'is', null);
-          if (!isAdmin) {
-            query = query.eq('assigned_to_id', currentUser.id);
-          }
-          const { data, error } = await query;
-          if (error) {
-            toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger les tâches." });
-            return [];
-          }
-          return data.map(t => ({ 
-            ...t, 
-            type: 'task',
-            // CORRECTION: Utiliser deadline pour l'affichage sur le calendrier (date d'échéance)
-            display_time: t.deadline
-          }));
-        };
-
-        const fetchEvents = async () => {
+      const fetchTasks = async () => {
+        let query = supabase.from('tasks').select('id, title, deadline, priority, status, created_at').not('deadline', 'is', null);
+        if (!isAdmin) {
+          // Filtrer : assigned_to_id OU dans assigned_to_ids OU dans visible_by_ids
+          query = query.or(`assigned_to_id.eq.${currentUser.id},assigned_to_ids.cs.{${currentUser.id}},visible_by_ids.cs.{${currentUser.id}}`);
+        }
+        const { data, error } = await query;
+        if (error) {
+          toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger les tâches." });
+          return [];
+        }
+        return data.map(t => ({ 
+          ...t, 
+          type: 'task',
+          // Utiliser deadline pour l'affichage sur le calendrier (date d'échéance)
+          display_time: t.deadline,
+          // Vérifier si la deadline est dépassée
+          isOverdue: new Date(t.deadline) < new Date() && t.status !== 'completed'
+        }));
+      };        const fetchEvents = async () => {
           let query = supabase.from('calendar_events').select('*');
           const { data, error } = await query;
           if (error) {
@@ -126,6 +127,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 
       const getMonthItemClassName = (item) => {
         if (item.type === 'task') {
+          // Si la deadline est dépassée et que la tâche n'est pas complétée, afficher en rouge foncé
+          if (item.isOverdue) {
+            return 'bg-red-700/90 text-white border border-red-400';
+          }
           switch (item.priority) {
             case 'urgent': return 'bg-red-500/70 text-white';
             case 'high': return 'bg-orange-500/70 text-white';
@@ -141,7 +146,17 @@ import React, { useState, useEffect, useCallback } from 'react';
         const metadata = item.metadata || {};
         
         let tooltip = `${item.type === 'task' ? '📝 Tâche' : '📅 Événement'}: ${item.title}\n`;
-        tooltip += `📆 ${format(itemTime, 'dd/MM/yyyy à HH:mm', { locale: fr })}\n`;
+        
+        if (item.type === 'task') {
+          tooltip += `⏰ Échéance: ${format(itemTime, 'dd/MM/yyyy à HH:mm', { locale: fr })}\n`;
+          if (item.isOverdue) {
+            tooltip += `⚠️ DEADLINE DÉPASSÉE\n`;
+          }
+          tooltip += `📊 Priorité: ${item.priority === 'urgent' ? 'Urgente' : item.priority === 'high' ? 'Haute' : item.priority === 'medium' ? 'Moyenne' : 'Normale'}\n`;
+          tooltip += `📋 Statut: ${item.status === 'completed' ? 'Complétée' : item.status === 'in_progress' ? 'En cours' : 'En attente'}\n`;
+        } else {
+          tooltip += `📆 ${format(itemTime, 'dd/MM/yyyy à HH:mm', { locale: fr })}\n`;
+        }
         
         if (item.description) {
           tooltip += `💬 Description: ${item.description}\n`;
@@ -206,11 +221,19 @@ import React, { useState, useEffect, useCallback } from 'react';
                             <span>{format(itemTime, 'HH:mm')}</span>
                             {item.type === 'task' && (
                               <span className="text-xs opacity-75">
-                                {getPriorityEmoji(item.priority)}
+                                {item.isOverdue ? '⏰' : getPriorityEmoji(item.priority)}
                               </span>
                             )}
                           </div>
-                          <div className="truncate">{item.title}</div>
+                          <div className="truncate flex items-center gap-1">
+                            {item.type === 'task' && <span className="text-[10px]">📝</span>}
+                            <span>{item.title}</span>
+                          </div>
+                          {item.type === 'task' && (
+                            <div className="text-[10px] opacity-75 mt-0.5">
+                              Échéance: {format(itemTime, 'dd/MM/yyyy')}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -236,6 +259,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 
       const getItemClassName = (item) => {
         if (item.type === 'task') {
+          // Si la deadline est dépassée et que la tâche n'est pas complétée, afficher en rouge foncé
+          if (item.isOverdue) {
+            return 'bg-red-700/90 text-white border border-red-400';
+          }
           switch (item.priority) {
             case 'urgent': return 'bg-red-500/80 text-white';
             case 'high': return 'bg-orange-500/80 text-white';
@@ -285,7 +312,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                         return (
                           <div
                             key={`${item.type}-${item.id}`}
-                            className={`absolute w-full p-1 text-xs rounded-md truncate z-10 cursor-pointer hover:opacity-90 transition-opacity ${getItemClassName(item)}`}
+                            className={`absolute w-full p-1 text-xs rounded-md z-10 cursor-pointer hover:opacity-90 transition-opacity ${getItemClassName(item)}`}
                             style={{ top: `${top}rem` }}
                             title={getEventTooltip(item)}
                           >
@@ -293,11 +320,19 @@ import React, { useState, useEffect, useCallback } from 'react';
                               <span>{format(itemDate, 'HH:mm')}</span>
                               {item.type === 'task' && (
                                 <span className="text-xs">
-                                  {getPriorityEmoji(item.priority)}
+                                  {item.isOverdue ? '⏰' : getPriorityEmoji(item.priority)}
                                 </span>
                               )}
                             </div>
-                            <div className="truncate">{item.title}</div>
+                            <div className="truncate flex items-center gap-1">
+                              {item.type === 'task' && <span className="text-[10px]">📝</span>}
+                              <span>{item.title}</span>
+                            </div>
+                            {item.type === 'task' && (
+                              <div className="text-[10px] opacity-75">
+                                Échéance: {format(itemDate, 'dd/MM/yyyy')}
+                              </div>
+                            )}
                           </div>
                         );
                       })}

@@ -347,10 +347,11 @@ const TaskManager = ({ currentUser }) => {
 
   const fetchTasks = async () => {
     const selectColumns =
-      'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_name,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment';
+      'id,title,description,priority,status,deadline,assigned_to_id,assigned_to_ids,assigned_to_name,visible_by_ids,case_id,attachments,created_at,updated_at,created_by_id,created_by_name,assigned_at,main_category,seen_at,completion_comment';
     let query = supabase.from('tasks').select(selectColumns);
     if (!isAdmin && currentUser?.id) {
-      query = query.eq('assigned_to_id', currentUser.id);
+      // Filtrer : assigned_to_id OU dans assigned_to_ids OU dans visible_by_ids
+      query = query.or(`assigned_to_id.eq.${currentUser.id},assigned_to_ids.cs.{${currentUser.id}},visible_by_ids.cs.{${currentUser.id}}`);
     }
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) {
@@ -554,6 +555,8 @@ const TaskManager = ({ currentUser }) => {
       ...dataToInsert,
       assigned_to_name: assignedMember ? assignedMember.name : null,
       assigned_at: dataToInsert.assigned_to_id ? new Date().toISOString() : null,
+      // Synchroniser assigned_to_ids avec assigned_to_id
+      assigned_to_ids: dataToInsert.assigned_to_id ? [dataToInsert.assigned_to_id] : [],
       created_by_id: currentUser.id,
       created_by_name: currentUser.name,
     };
@@ -870,6 +873,8 @@ const TaskManager = ({ currentUser }) => {
     const updatePayload = {
       ...cleanDataToUpdate,
       assigned_to_name: assignedMember ? assignedMember.name : null,
+      // Synchroniser assigned_to_ids avec assigned_to_id
+      assigned_to_ids: dataToUpdate.assigned_to_id ? [dataToUpdate.assigned_to_id] : [],
     };
 
     for (const key of Object.keys(updatePayload)) {
