@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   case_title TEXT,
   total_ttc NUMERIC NOT NULL DEFAULT 0,
   invoice_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  invoice_type TEXT NOT NULL DEFAULT 'definitive' CHECK (invoice_type IN ('proforma', 'definitive')),
   debours JSONB DEFAULT '{}',
   honoraires JSONB DEFAULT '{}',
   payment JSONB DEFAULT '{}',
@@ -21,6 +22,7 @@ CREATE INDEX IF NOT EXISTS idx_invoices_created_by ON invoices(created_by);
 CREATE INDEX IF NOT EXISTS idx_invoices_invoice_date ON invoices(invoice_date);
 CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
 CREATE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(invoice_number);
+CREATE INDEX IF NOT EXISTS idx_invoices_invoice_type ON invoices(invoice_type);
 
 -- Trigger pour mettre à jour automatiquement updated_at
 CREATE OR REPLACE FUNCTION update_invoices_updated_at()
@@ -70,6 +72,7 @@ COMMENT ON COLUMN invoices.invoice_number IS 'Numéro unique de la facture (ex: 
 COMMENT ON COLUMN invoices.case_id IS 'Référence au dossier associé';
 COMMENT ON COLUMN invoices.case_title IS 'Titre du dossier pour affichage';
 COMMENT ON COLUMN invoices.total_ttc IS 'Montant total TTC de la facture';
+COMMENT ON COLUMN invoices.invoice_type IS 'Type de facture: proforma (facture pro forma) ou definitive (facture définitive)';
 COMMENT ON COLUMN invoices.debours IS 'Détails des débours (JSON)';
 COMMENT ON COLUMN invoices.honoraires IS 'Détails des honoraires (JSON)';
 COMMENT ON COLUMN invoices.payment IS 'Informations de paiement (JSON)';

@@ -60,100 +60,100 @@ const BillingPrintPage = ({ invoices, onClose }) => {
         </div>
 
         {/* Contenu imprimable */}
-        <div className="p-8 print:p-6">
-          {/* En-tête du document */}
-          <div className="text-center mb-8 border-b-2 border-gray-300 pb-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">CABINET D'AVOCATS</h1>
-            <h2 className="text-xl font-semibold text-gray-700 mb-4">RAPPORT DE FACTURATION</h2>
-            <div className="text-sm text-gray-600">
+        <div className="p-8 print:p-[10mm]">
+          {/* En-tête du document - éviter coupure */}
+          <div className="text-center mb-4 print:mb-3 border-b-2 border-gray-300 pb-3 print:pb-2 print:break-inside-avoid">
+            <h1 className="text-xl print:text-lg font-bold text-gray-900 mb-1">CABINET D'AVOCATS</h1>
+            <h2 className="text-lg print:text-base font-semibold text-gray-700 mb-2 print:mb-1">RAPPORT DE FACTURATION</h2>
+            <div className="text-sm print:text-xs text-gray-600">
               <p>Généré le {new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
             </div>
           </div>
 
-          {/* Statistiques */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 text-sm">
-            <div className="bg-gray-50 p-4 rounded-lg border">
+          {/* Statistiques - éviter coupure */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 print:gap-2 mb-4 print:mb-3 text-sm print:text-xs print:break-inside-avoid">
+            <div className="bg-gray-50 p-3 print:p-2 rounded-lg border">
               <div className="font-semibold text-gray-700">Total Factures</div>
-              <div className="text-2xl font-bold text-gray-900">{totalInvoices}</div>
+              <div className="text-xl print:text-lg font-bold text-gray-900">{totalInvoices}</div>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg border">
+            <div className="bg-gray-50 p-3 print:p-2 rounded-lg border">
               <div className="font-semibold text-gray-700">Montant Total</div>
-              <div className="text-xl font-bold text-gray-900">{formatCurrency(totalAmount)} F CFA</div>
+              <div className="text-base print:text-sm font-bold text-gray-900 whitespace-nowrap">{formatCurrency(totalAmount)} F CFA</div>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg border">
+            <div className="bg-gray-50 p-3 print:p-2 rounded-lg border">
               <div className="font-semibold text-gray-700">Montant Encaissé</div>
-              <div className="text-xl font-bold text-green-600">{formatCurrency(totalPaid)} F CFA</div>
+              <div className="text-base print:text-sm font-bold text-green-600 whitespace-nowrap">{formatCurrency(totalPaid)} F CFA</div>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg border">
+            <div className="bg-gray-50 p-3 print:p-2 rounded-lg border">
               <div className="font-semibold text-gray-700">Reste à Encaisser</div>
-              <div className="text-xl font-bold text-red-600">{formatCurrency(totalAmount - totalPaid)} F CFA</div>
+              <div className="text-base print:text-sm font-bold text-red-600 whitespace-nowrap">{formatCurrency(totalAmount - totalPaid)} F CFA</div>
             </div>
           </div>
 
-          {/* Répartition par statut */}
-          <div className="mb-6">
-            <h3 className="font-semibold text-gray-800 mb-3">Répartition par Statut</h3>
-            <div className="grid grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center justify-between p-2 bg-green-50 rounded border">
+          {/* Répartition par statut - éviter coupure */}
+          <div className="mb-3 print:mb-2 print:break-inside-avoid">
+            <h3 className="font-semibold text-gray-800 mb-2 print:mb-1 text-sm print:text-xs">Répartition par Statut</h3>
+            <div className="grid grid-cols-3 gap-3 print:gap-2 text-sm print:text-xs">
+              <div className="flex items-center justify-between p-2 print:p-1 bg-green-50 rounded border">
                 <span>Réglées totalement</span>
                 <span className="font-bold text-green-700">{paidFully}</span>
               </div>
-              <div className="flex items-center justify-between p-2 bg-yellow-50 rounded border">
+              <div className="flex items-center justify-between p-2 print:p-1 bg-yellow-50 rounded border">
                 <span>Réglées partiellement</span>
                 <span className="font-bold text-yellow-700">{paidPartially}</span>
               </div>
-              <div className="flex items-center justify-between p-2 bg-red-50 rounded border">
+              <div className="flex items-center justify-between p-2 print:p-1 bg-red-50 rounded border">
                 <span>Non réglées</span>
                 <span className="font-bold text-red-700">{unpaid}</span>
               </div>
             </div>
           </div>
 
-          {/* Tableau des factures */}
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300 text-sm">
+          {/* Tableau des factures - optimisé pour A4 */}
+          <div className="overflow-x-auto print:overflow-visible">
+            <table className="w-full border-collapse border border-gray-300 text-sm print:text-[7pt]">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">N° Facture</th>
-                  <th className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Client</th>
-                  <th className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Date</th>
-                  <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-800">Montant TTC</th>
-                  <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-800">Provision Versée</th>
-                  <th className="border border-gray-300 px-3 py-2 text-center font-semibold text-gray-800">Statut</th>
-                  <th className="border border-gray-300 px-3 py-2 text-center font-semibold text-gray-800">Mode Paiement</th>
+                  <th className="border border-gray-300 px-2 print:px-1 py-2 print:py-1 text-left font-semibold text-gray-800">N° Facture</th>
+                  <th className="border border-gray-300 px-2 print:px-1 py-2 print:py-1 text-left font-semibold text-gray-800">Client</th>
+                  <th className="border border-gray-300 px-2 print:px-1 py-2 print:py-1 text-left font-semibold text-gray-800">Date</th>
+                  <th className="border border-gray-300 px-2 print:px-1 py-2 print:py-1 text-right font-semibold text-gray-800">Montant TTC</th>
+                  <th className="border border-gray-300 px-2 print:px-1 py-2 print:py-1 text-right font-semibold text-gray-800">Provision</th>
+                  <th className="border border-gray-300 px-2 print:px-1 py-2 print:py-1 text-center font-semibold text-gray-800">Statut</th>
+                  <th className="border border-gray-300 px-2 print:px-1 py-2 print:py-1 text-center font-semibold text-gray-800">Paiement</th>
                 </tr>
               </thead>
               <tbody>
                 {invoices.map((invoice, index) => (
-                  <tr key={invoice.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="border border-gray-300 px-3 py-2 font-medium text-gray-900">
+                  <tr key={invoice.id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} print:break-inside-avoid`}>
+                    <td className="border border-gray-300 px-2 print:px-1 py-1 font-medium text-gray-900">
                       {invoice.invoiceNumber}
                     </td>
-                    <td className="border border-gray-300 px-3 py-2 text-gray-700">
+                    <td className="border border-gray-300 px-2 print:px-1 py-1 text-gray-700 max-w-[120px] truncate" title={invoice.clientName}>
                       {invoice.clientName}
                     </td>
-                    <td className="border border-gray-300 px-3 py-2 text-gray-700">
+                    <td className="border border-gray-300 px-2 print:px-1 py-1 text-gray-700 whitespace-nowrap">
                       {formatDate(invoice.date)}
                     </td>
-                    <td className="border border-gray-300 px-3 py-2 text-right font-medium text-gray-900">
-                      {formatCurrency(invoice.totalTTC)} F CFA
+                    <td className="border border-gray-300 px-2 print:px-1 py-1 text-right font-medium text-gray-900 whitespace-nowrap">
+                      {formatCurrency(invoice.totalTTC)}
                     </td>
-                    <td className="border border-gray-300 px-3 py-2 text-right text-gray-700">
+                    <td className="border border-gray-300 px-2 print:px-1 py-1 text-right text-gray-700 whitespace-nowrap">
                       {invoice.payment?.provision ? 
-                        `${formatCurrency(invoice.payment.provisionAmount || 0)} F CFA` : 
-                        'Aucune'
+                        formatCurrency(invoice.payment.provisionAmount || 0) : 
+                        '-'
                       }
                     </td>
-                    <td className="border border-gray-300 px-3 py-2 text-center">
+                    <td className="border border-gray-300 px-2 print:px-1 py-1 text-center">
                       <span 
-                        className="inline-block px-2 py-1 rounded text-xs font-medium text-white"
+                        className="inline-block px-1 py-0.5 rounded text-[10px] print:text-[7pt] font-medium text-white"
                         style={{ backgroundColor: getStatusBadge(invoice.status) }}
                       >
-                        {invoice.status}
+                        {invoice.status === 'réglée totalement' ? 'Réglée' : invoice.status === 'réglée partiellement' ? 'Partielle' : 'Non réglée'}
                       </span>
                     </td>
-                    <td className="border border-gray-300 px-3 py-2 text-center text-gray-700 capitalize">
-                      {invoice.payment?.method || 'Non défini'}
+                    <td className="border border-gray-300 px-2 print:px-1 py-1 text-center text-gray-700 capitalize text-xs print:text-[7pt]">
+                      {invoice.payment?.method || '-'}
                     </td>
                   </tr>
                 ))}
@@ -161,23 +161,23 @@ const BillingPrintPage = ({ invoices, onClose }) => {
             </table>
           </div>
 
-          {/* Résumé en bas */}
-          <div className="mt-8 pt-6 border-t-2 border-gray-300">
-            <div className="grid grid-cols-2 gap-8 text-sm">
+          {/* Résumé en bas - éviter coupure */}
+          <div className="mt-4 print:mt-3 pt-3 print:pt-2 border-t-2 border-gray-300 print:break-inside-avoid">
+            <div className="grid grid-cols-2 gap-4 print:gap-3 text-sm print:text-xs">
               <div>
-                <h4 className="font-semibold text-gray-800 mb-3">Résumé Financier</h4>
-                <div className="space-y-2">
+                <h4 className="font-semibold text-gray-800 mb-2 print:mb-1">Résumé Financier</h4>
+                <div className="space-y-1">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Chiffre d'affaires facturé :</span>
-                    <span className="font-medium">{formatCurrency(totalAmount)} F CFA</span>
+                    <span className="font-medium whitespace-nowrap">{formatCurrency(totalAmount)} F CFA</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Montant encaissé :</span>
-                    <span className="font-medium text-green-600">{formatCurrency(totalPaid)} F CFA</span>
+                    <span className="font-medium text-green-600 whitespace-nowrap">{formatCurrency(totalPaid)} F CFA</span>
                   </div>
-                  <div className="flex justify-between border-t pt-2">
+                  <div className="flex justify-between border-t pt-1">
                     <span className="text-gray-600 font-semibold">Reste à encaisser :</span>
-                    <span className="font-bold text-red-600">{formatCurrency(totalAmount - totalPaid)} F CFA</span>
+                    <span className="font-bold text-red-600 whitespace-nowrap">{formatCurrency(totalAmount - totalPaid)} F CFA</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Taux d'encaissement :</span>
@@ -188,8 +188,8 @@ const BillingPrintPage = ({ invoices, onClose }) => {
                 </div>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-800 mb-3">Informations</h4>
-                <div className="space-y-2 text-gray-600">
+                <h4 className="font-semibold text-gray-800 mb-2 print:mb-1">Informations</h4>
+                <div className="space-y-0.5 text-gray-600">
                   <p>• Rapport généré automatiquement</p>
                   <p>• Données au {new Date().toLocaleDateString('fr-FR')}</p>
                   <p>• Total de {totalInvoices} facture(s) incluse(s)</p>
@@ -206,16 +206,135 @@ const BillingPrintPage = ({ invoices, onClose }) => {
         </div>
       </div>
 
-      {/* Styles d'impression intégrés */}
+      {/* Styles d'impression optimisés pour A4 */}
       <style>
         {`
           @media print {
             @page {
-              margin: 1cm;
-              size: A4;
+              margin: 8mm 10mm;
+              size: A4 portrait;
             }
             
             body {
+              print-color-adjust: exact;
+              -webkit-print-color-adjust: exact;
+              font-size: 8pt;
+              line-height: 1.2;
+            }
+            
+            * {
+              box-sizing: border-box;
+            }
+            
+            /* Empêcher les coupures */
+            .print\\:break-inside-avoid {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+            
+            /* Optimiser espaces */
+            .print\\:p-\\[10mm\\] {
+              padding: 10mm !important;
+            }
+            
+            .print\\:p-2 {
+              padding: 0.3rem !important;
+            }
+            
+            .print\\:p-1 {
+              padding: 0.2rem !important;
+            }
+            
+            .print\\:px-1 {
+              padding-left: 0.2rem !important;
+              padding-right: 0.2rem !important;
+            }
+            
+            .print\\:py-1 {
+              padding-top: 0.2rem !important;
+              padding-bottom: 0.2rem !important;
+            }
+            
+            .print\\:pb-2 {
+              padding-bottom: 0.3rem !important;
+            }
+            
+            .print\\:mb-3 {
+              margin-bottom: 0.5rem !important;
+            }
+            
+            .print\\:mb-2 {
+              margin-bottom: 0.3rem !important;
+            }
+            
+            .print\\:mb-1 {
+              margin-bottom: 0.2rem !important;
+            }
+            
+            .print\\:mt-3 {
+              margin-top: 0.5rem !important;
+            }
+            
+            .print\\:mt-2 {
+              margin-top: 0.3rem !important;
+            }
+            
+            .print\\:pt-2 {
+              padding-top: 0.3rem !important;
+            }
+            
+            .print\\:gap-2 {
+              gap: 0.3rem !important;
+            }
+            
+            .print\\:gap-3 {
+              gap: 0.5rem !important;
+            }
+            
+            .print\\:text-lg {
+              font-size: 10pt !important;
+            }
+            
+            .print\\:text-base {
+              font-size: 8pt !important;
+            }
+            
+            .print\\:text-sm {
+              font-size: 7pt !important;
+            }
+            
+            .print\\:text-xs {
+              font-size: 6.5pt !important;
+            }
+            
+            .print\\:text-\\[7pt\\] {
+              font-size: 7pt !important;
+            }
+            
+            .print\\:overflow-visible {
+              overflow: visible !important;
+            }
+            
+            /* Optimiser tableaux */
+            table {
+              page-break-inside: auto;
+            }
+            
+            tr {
+              page-break-inside: avoid;
+              page-break-after: auto;
+            }
+            
+            thead {
+              display: table-header-group;
+            }
+            
+            /* Conserver couleurs */
+            .bg-gray-50,
+            .bg-gray-100,
+            .bg-green-50,
+            .bg-yellow-50,
+            .bg-red-50 {
               print-color-adjust: exact;
               -webkit-print-color-adjust: exact;
             }
