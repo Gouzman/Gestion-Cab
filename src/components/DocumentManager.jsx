@@ -83,7 +83,7 @@ import React, { useState, useEffect } from 'react';
       useEffect(() => {
         const fetchDocuments = async () => {
           try {
-            // Récupérer les fichiers depuis tasks_files (avec jointure optionnelle)
+            // Récupérer TOUS les fichiers (incluant task_id ET case_id)
             const { data: filesData, error } = await supabase
               .from('tasks_files')
               .select(`
@@ -95,6 +95,7 @@ import React, { useState, useEffect } from 'react';
                 document_category,
                 created_at,
                 task_id,
+                case_id,
                 created_by
               `)
               .order('created_at', { ascending: false });
@@ -110,8 +111,8 @@ import React, { useState, useEffect } from 'react';
               return;
             }
 
-            // Récupérer les infos des dossiers (cases) pour ceux qui ont un task_id
-            const caseIds = [...new Set(filesData.filter(f => f.task_id).map(f => f.task_id))];
+            // Récupérer les infos des dossiers (cases) pour enrichir l'affichage
+            const caseIds = [...new Set(filesData.filter(f => f.case_id).map(f => f.case_id))];
             let casesMap = {};
             
             if (caseIds.length > 0) {
@@ -128,22 +129,67 @@ import React, { useState, useEffect } from 'react';
               }
             }
 
-            // Transformer les données pour l'affichage
-            const allDocs = (filesData || []).map(file => ({
-              id: file.id,
-              name: file.file_name,
-              path: file.file_url,
-              url: file.file_url,
-              taskTitle: file.task_id ? (casesMap[file.task_id] || 'Dossier supprimé') : 'Document indépendant',
-              taskId: file.task_id,
-              date: file.created_at,
-              fileType: file.file_type,
-              fileSize: file.file_size,
-              category: file.document_category,
-              timeSpent: 0,
-            }));
+            // Récupérer les infos des tâches pour ceux qui ont un task_id
+            const taskIds = [...new Set(filesData.filter(f => f.task_id).map(f => f.task_id))];
+            let tasksMap = {};
             
-            setDocuments(allDocs);
+            if (taskIds.length > 0) {
+              const { data: tasksData } = await supabase
+                .from('tasks')
+                .select('id, title')
+                .in('id', taskIds);
+              
+              if (tasksData) {
+                tasksMap = tasksData.reduce((acc, t) => {
+                  acc[t.id] = t.title;
+                  return acc;
+                }, {});
+              }
+            }
+
+            // Transformer les données pour l'affichage avec enrichissement case/task
+            const allDocs = (filesData || []).map(file => {
+              let linkedTo = 'Document indépendant';
+              let source = 'standalone';
+              
+              if (file.task_id && file.case_id) {
+                // Document lié à une tâche ET un dossier
+                linkedTo = `Tâche: ${tasksMap[file.task_id] || 'Supprimée'} | Dossier: ${casesMap[file.case_id] || 'Supprimé'}`;
+                source = 'task-and-case';
+              } else if (file.task_id) {
+                // Document lié uniquement à une tâche
+                linkedTo = `Tâche: ${tasksMap[file.task_id] || 'Tâche supprimée'}`;
+                source = 'task';
+              } else if (file.case_id) {
+                // Document lié uniquement à un dossier
+                linkedTo = `Dossier: ${casesMap[file.case_id] || 'Dossier supprimé'}`;
+                source = 'case';
+              }
+              
+              return {
+                id: file.id,
+                name: file.file_name,
+                path: file.file_url,
+                url: file.file_url,
+                taskTitle: linkedTo,
+                taskId: file.task_id,
+                caseId: file.case_id,
+                source: source,
+                date: file.created_at,
+                fileType: file.file_type,
+                fileSize: file.file_size,
+                category: file.document_category,
+                timeSpent: 0,
+              };
+            });
+            
+            // Dédupliquer par file_url (garder la version la plus récente)
+            const uniqueDocs = Array.from(
+              new Map(allDocs.map(doc => [doc.url, doc])).values()
+            );
+            
+            console.log(`✅ ${uniqueDocs.length} document(s) unique(s) chargé(s)`);
+            setDocuments(uniqueDocs);
             
           } catch (fetchError) {
             console.error('Erreur lors de la récupération des documents:', fetchError);

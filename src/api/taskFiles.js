@@ -110,7 +110,7 @@ function safeJsonArray(value) {
  * @param {string} fileData - Données du fichier en base64 pour backup local (optionnel, si ≤ 50Mo)
  * @returns {Promise<Object>} Résultat de l'insertion
  */
-export async function addTaskFile(taskId, fileName, fileUrl, fileSize = null, fileType = null, createdBy = null, fileData = null) {
+export async function addTaskFile(taskId, fileName, fileUrl, fileSize = null, fileType = null, createdBy = null, fileData = null, caseId = null) {
   try {
     // Ne jamais insérer si l'upload Storage n'a pas renvoyé d'URL publique
     if (!fileUrl || (typeof fileUrl === 'string' && fileUrl.trim() === '')) {
@@ -136,6 +136,20 @@ export async function addTaskFile(taskId, fileName, fileUrl, fileSize = null, fi
         };
       }
     }
+    
+    // VALIDATION : Vérifier que case_id existe si fourni
+    if (caseId) {
+      const { data: caseExists, error: caseCheckError } = await supabase
+        .from('cases')
+        .select('id')
+        .eq('id', caseId)
+        .single();
+
+      if (caseCheckError || !caseExists) {
+        console.warn(`⚠️ case_id "${caseId}" n'existe pas - synchronisation dossier désactivée`);
+        caseId = null; // Ne pas bloquer l'upload, juste ignorer le case_id
+      }
+    }
 
     // Normaliser file_size en nombre (octets) si possible
     let safeFileSize = null;
@@ -148,6 +162,7 @@ export async function addTaskFile(taskId, fileName, fileUrl, fileSize = null, fi
 
     const payload = {
       task_id: taskId,
+      case_id: caseId, // 🔗 Ajout du case_id pour synchronisation bidirectionnelle
       file_name: fileName,
       file_url: fileUrl,
       file_size: safeFileSize, // Toujours un nombre ou null
@@ -160,6 +175,10 @@ export async function addTaskFile(taskId, fileName, fileUrl, fileSize = null, fi
     if (fileData && typeof fileData === 'string' && fileData.length > 0) {
       payload.file_data = fileData;
       console.log(`💾 Backup local inclus`);
+    }
+    
+    if (caseId) {
+      console.log(`🔗 Document sera synchronisé avec le dossier ${caseId}`);
     }
 
     const { data, error } = await supabase

@@ -195,6 +195,23 @@ export async function uploadTaskFile(file, taskId, userId = null) {
     
     console.log(`💾 Enregistrement des métadonnées dans tasks_files (task_id: ${taskId})...`);
     
+    // Récupérer le case_id de la tâche pour la synchronisation automatique
+    let caseId = null;
+    try {
+      const { data: taskData } = await supabase
+        .from('tasks')
+        .select('case_id')
+        .eq('id', taskId)
+        .single();
+      
+      if (taskData && taskData.case_id) {
+        caseId = taskData.case_id;
+        console.log(`🔗 Tâche liée au dossier ${caseId} - synchronisation activée`);
+      }
+    } catch (e) {
+      console.warn('⚠️ Impossible de récupérer case_id:', e.message);
+    }
+    
     const fileRecord = await addTaskFile(
       taskId,
       displayName,
@@ -202,7 +219,8 @@ export async function uploadTaskFile(file, taskId, userId = null) {
       fileToUpload.size,
       fileToUpload.type,
       userId,
-      base64Data
+      base64Data,
+      caseId // Passer le case_id pour synchronisation
     );
 
     if (!fileRecord.success) {
