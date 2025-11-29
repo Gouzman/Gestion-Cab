@@ -149,6 +149,84 @@ export async function getTaskDocumentsWithInherited(taskId) {
 }
 
 /**
+ * Transfère un document existant vers une tâche (synchronisation bidirectionnelle)
+ * @param {string} documentId - ID du document dans tasks_files
+ * @param {string} taskId - ID de la tâche cible
+ * @returns {Promise<Object>} Résultat du transfert
+ */
+export async function transferDocumentToTask(documentId, taskId) {
+  try {
+    if (!documentId || !taskId) {
+      return { success: false, error: 'documentId et taskId requis' };
+    }
+
+    // Récupérer le document source
+    const { data: sourceDoc, error: fetchError } = await supabase
+      .from('tasks_files')
+      .select('*')
+      .eq('id', documentId)
+      .single();
+
+    if (fetchError || !sourceDoc) {
+      return { success: false, error: 'Document source introuvable' };
+    }
+
+    // Vérifier que la tâche existe et récupérer son case_id
+    const { data: taskData, error: taskError } = await supabase
+      .from('tasks')
+      .select('id, case_id')
+      .eq('id', taskId)
+      .single();
+
+    if (taskError || !taskData) {
+      return { success: false, error: 'Tâche introuvable' };
+    }
+
+    // Vérifier si le document n'est pas déjà lié à cette tâche
+    const { data: existing } = await supabase
+      .from('tasks_files')
+      .select('id')
+      .eq('file_url', sourceDoc.file_url)
+      .eq('task_id', taskId)
+      .single();
+
+    if (existing) {
+      return { success: true, data: existing, message: 'Document déjà lié à cette tâche' };
+    }
+
+    // Créer une nouvelle entrée liée à la tâche
+    const newEntry = {
+      task_id: taskId,
+      case_id: taskData.case_id, // Lier aussi au dossier si la tâche est rattachée
+      file_name: sourceDoc.file_name,
+      file_url: sourceDoc.file_url,
+      file_size: sourceDoc.file_size,
+      file_type: sourceDoc.file_type,
+      document_category: sourceDoc.document_category,
+      created_by: sourceDoc.created_by
+    };
+
+    const { data, error } = await supabase
+      .from('tasks_files')
+      .insert(newEntry)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Erreur transfert document vers tâche:', error);
+      return { success: false, error };
+    }
+
+    console.log(`✅ Document transféré vers tâche ${taskId} avec synchronisation case_id`);
+    return { success: true, data };
+
+  } catch (e) {
+    console.error('❌ Exception lors du transfert:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
  * Ajoute un document directement à un dossier (sans tâche)
  * @param {string} caseId - ID du dossier
  * @param {string} fileName - Nom du fichier
@@ -156,9 +234,10 @@ export async function getTaskDocumentsWithInherited(taskId) {
  * @param {number} fileSize - Taille du fichier
  * @param {string} fileType - Type MIME
  * @param {string} createdBy - ID utilisateur
+ * @param {string} documentCategory - Catégorie du document
  * @returns {Promise<Object>} Résultat de l'insertion
  */
-export async function addCaseFile(caseId, fileName, fileUrl, fileSize = null, fileType = null, createdBy = null) {
+export async function addCaseFile(caseId, fileName, fileUrl, fileSize = null, fileType = null, createdBy = null, documentCategory = null) {
   try {
     // Validation
     if (!caseId || !fileName || !fileUrl) {
@@ -204,6 +283,7 @@ export async function addCaseFile(caseId, fileName, fileUrl, fileSize = null, fi
       file_url: fileUrl,
       file_size: fileSize,
       file_type: fileType,
+      document_category: documentCategory,
       created_by: createdBy
     };
 

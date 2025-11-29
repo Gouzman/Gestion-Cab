@@ -26,6 +26,16 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
     filesToUpload: [],
     scannedFiles: []
   });
+  const [selectedCategory, setSelectedCategory] = useState('');
+  
+  // Catégories de documents (conformité juridique)
+  const documentCategories = [
+    { value: 'Documents de suivi et facturation', label: 'Documents de suivi et facturation' },
+    { value: 'Pièces', label: 'Pièces' },
+    { value: 'Écritures', label: 'Écritures' },
+    { value: 'Courriers', label: 'Courriers' },
+    { value: 'Observations et notes', label: 'Observations et notes' }
+  ];
   const [showReassign, setShowReassign] = useState(false);
   const [availableSubTasks, setAvailableSubTasks] = useState([]);
   const [scannerAvailable, setScannerAvailable] = useState(false);
@@ -110,25 +120,40 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
       
+      // Vérifier qu'une catégorie est sélectionnée
+      if (!selectedCategory) {
+        toast({
+          variant: "destructive",
+          title: "⚠️ Catégorie requise",
+          description: "Veuillez sélectionner une catégorie de document avant d'ajouter des fichiers."
+        });
+        e.target.value = '';
+        return;
+      }
+      
       // Si on édite une tâche existante, uploader immédiatement
       if (task?.id) {
-        await handleImmediateUpload(newFiles);
+        await handleImmediateUpload(newFiles, selectedCategory);
       } else {
-        // Sinon, ajouter aux fichiers en attente
+        // Sinon, ajouter aux fichiers en attente avec leur catégorie
+        const filesWithCategory = newFiles.map(file => ({
+          file,
+          category: selectedCategory
+        }));
         setFormData(prev => ({
           ...prev,
-          filesToUpload: [...prev.filesToUpload, ...newFiles]
+          filesToUpload: [...prev.filesToUpload, ...filesWithCategory]
         }));
         toast({
           title: `📎 ${newFiles.length} fichier(s) ajouté(s)`,
-          description: `Prêt(s) à être téléversé(s) lors de la sauvegarde.`,
+          description: `Catégorie: ${selectedCategory} - Prêt(s) à être téléversé(s) lors de la sauvegarde.`,
         });
       }
       e.target.value = '';
     }
   };
 
-  const handleImmediateUpload = async (files) => {
+  const handleImmediateUpload = async (files, category) => {
     if (!task?.id) {
       toast({
         variant: "destructive",
@@ -139,19 +164,19 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
     }
 
     try {
-      const { uploadMultipleTaskFiles } = await import('@/lib/uploadManager');
+      const { uploadMultipleTaskFilesWithCategory } = await import('@/lib/uploadManager');
       
       toast({
         title: "📤 Upload en cours...",
-        description: `Téléversement de ${files.length} fichier(s)...`,
+        description: `Téléversement de ${files.length} fichier(s) avec catégorie "${category}"...`,
       });
 
-      const uploadResult = await uploadMultipleTaskFiles(files, task.id, currentUser?.id);
+      const uploadResult = await uploadMultipleTaskFilesWithCategory(files, task.id, currentUser?.id, category);
       
       if (uploadResult.success) {
         toast({
           title: "✅ Fichiers uploadés",
-          description: `${uploadResult.data.length} fichier(s) téléversé(s) avec succès.`,
+          description: `${uploadResult.data.length} fichier(s) téléversé(s) avec catégorie "${category}".`,
         });
         
         // Rafraîchir la liste des fichiers via le parent
@@ -335,18 +360,28 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
                   }
                   modal.remove();
                   
+                  // Vérifier qu'une catégorie est sélectionnée
+                  if (!selectedCategory) {
+                    toast({
+                      variant: "destructive",
+                      title: "⚠️ Catégorie requise",
+                      description: "Veuillez sélectionner une catégorie de document avant de numériser."
+                    });
+                    return;
+                  }
+                  
                   // Si on édite une tâche existante, uploader immédiatement
                   if (task?.id) {
-                    await handleImmediateUpload([file]);
+                    await handleImmediateUpload([file], selectedCategory);
                   } else {
                     setFormData(prev => ({
                       ...prev,
-                      scannedFiles: [...prev.scannedFiles, file]
+                      scannedFiles: [...prev.scannedFiles, { file, category: selectedCategory }]
                     }));
                     
                     toast({
                       title: "✅ Document numérisé",
-                      description: `${file.name} capturé avec succès (${(blob.size / 1024).toFixed(0)} Ko)`,
+                      description: `${file.name} capturé avec succès (${(blob.size / 1024).toFixed(0)} Ko) - Catégorie: ${selectedCategory}`,
                     });
                   }
                 }, 'image/png', 0.95);
@@ -688,6 +723,29 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
               <Paperclip className="w-4 h-4 inline mr-2" />
               Pièces jointes
             </label>
+            
+            {/* Sélection de catégorie OBLIGATOIRE */}
+            <div className="mb-4 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+              <label className="block text-sm font-medium text-blue-300 mb-2">
+                📁 Catégorie du document *
+              </label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-- Sélectionner une catégorie --</option>
+                {documentCategories.map(cat => (
+                  <option key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-xs text-slate-400">
+                ⚠️ La catégorie est obligatoire pour tous les documents ajoutés à cette tâche.
+              </p>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Bouton 1: Choisir des fichiers (sélecteur interne) */}
               <label 
@@ -728,9 +786,12 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
                   </Button>
                 </div>
               ))}
-              {formData.filesToUpload.map((file, index) => (
+              {formData.filesToUpload.map((fileObj, index) => (
                 <div key={index} className="flex items-center justify-between text-sm text-green-400 bg-green-900/30 p-2 rounded-md">
-                  <span>📎 {file.name} (nouveau fichier)</span>
+                  <div className="flex-1">
+                    <div>📎 {fileObj.file.name}</div>
+                    <div className="text-xs text-blue-300 mt-1">🏷️ {fileObj.category}</div>
+                  </div>
                   <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:text-red-300" onClick={() => {
                     setFormData(prev => ({
                       ...prev,
@@ -741,9 +802,12 @@ const TaskForm = ({ task, onSubmit, onCancel, teamMembers, cases, currentUser })
                   </Button>
                 </div>
               ))}
-              {formData.scannedFiles.map((file, index) => (
+              {formData.scannedFiles.map((fileObj, index) => (
                 <div key={index} className="flex items-center justify-between text-sm text-blue-400 bg-blue-900/30 p-2 rounded-md">
-                  <span>📷 {file.name} (document numérisé)</span>
+                  <div className="flex-1">
+                    <div>📷 {fileObj.file.name}</div>
+                    <div className="text-xs text-blue-300 mt-1">🏷️ {fileObj.category}</div>
+                  </div>
                   <Button variant="ghost" size="icon" className="h-6 w-6 text-red-400 hover:text-red-300" onClick={() => {
                     setFormData(prev => ({
                       ...prev,

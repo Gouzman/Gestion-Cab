@@ -602,8 +602,28 @@ const TaskManager = ({ currentUser }) => {
     if (filesToUpload && filesToUpload.length > 0) {
       (async () => {
         try {
-          const { uploadMultipleTaskFiles } = await import('@/lib/uploadManager');
-          const uploadResult = await uploadMultipleTaskFiles(filesToUpload, data.id, currentUser?.id);
+          // Vérifier si les fichiers sont des objets {file, category} ou des File simples
+          const hasCategories = filesToUpload.length > 0 && 
+                                filesToUpload[0].file && 
+                                filesToUpload[0].category;
+          
+          let uploadResult;
+          
+          if (hasCategories) {
+            // Grouper par catégorie et uploader
+            const { uploadMultipleTaskFilesWithCategory } = await import('@/lib/uploadManager');
+            
+            // Pour simplifier, on prend la catégorie du premier fichier
+            // (dans TaskForm, tous les fichiers uploadés ensemble ont la même catégorie)
+            const firstCategory = filesToUpload[0].category;
+            const files = filesToUpload.map(obj => obj.file);
+            
+            uploadResult = await uploadMultipleTaskFilesWithCategory(files, data.id, currentUser?.id, firstCategory);
+          } else {
+            // Ancienne méthode sans catégorie
+            const { uploadMultipleTaskFiles } = await import('@/lib/uploadManager');
+            uploadResult = await uploadMultipleTaskFiles(filesToUpload, data.id, currentUser?.id);
+          }
 
           if (uploadResult.success) {
             setTaskFiles((prev) => ({
@@ -658,12 +678,38 @@ const TaskManager = ({ currentUser }) => {
     if (scannedFiles && scannedFiles.length > 0) {
       (async () => {
         try {
-          const bucketReady = await ensureTaskScansBucket();
-          if (!bucketReady) return;
-          for (const file of scannedFiles) {
-            const scannedFile = await handleScanUpload(file, data.id);
-            if (scannedFile) {
-              console.log('✅ Scan uploadé (background):', scannedFile.file_name || scannedFile.file_url);
+          // Vérifier si les fichiers scannés ont des catégories
+          const hasCategories = scannedFiles.length > 0 && 
+                                scannedFiles[0].file && 
+                                scannedFiles[0].category;
+          
+          if (hasCategories) {
+            // Nouveaux fichiers avec catégorie - utiliser uploadMultipleTaskFilesWithCategory
+            const { uploadMultipleTaskFilesWithCategory } = await import('@/lib/uploadManager');
+            
+            // Grouper par catégorie
+            const filesByCategory = scannedFiles.reduce((acc, obj) => {
+              if (!acc[obj.category]) acc[obj.category] = [];
+              acc[obj.category].push(obj.file);
+              return acc;
+            }, {});
+            
+            // Uploader chaque groupe
+            for (const [category, files] of Object.entries(filesByCategory)) {
+              const uploadResult = await uploadMultipleTaskFilesWithCategory(files, data.id, currentUser?.id, category);
+              if (uploadResult.success) {
+                console.log(`✅ ${files.length} scan(s) uploadé(s) avec catégorie "${category}"`);
+              }
+            }
+          } else {
+            // Ancienne méthode sans catégorie
+            const bucketReady = await ensureTaskScansBucket();
+            if (!bucketReady) return;
+            for (const file of scannedFiles) {
+              const scannedFile = await handleScanUpload(file, data.id);
+              if (scannedFile) {
+                console.log('✅ Scan uploadé (background):', scannedFile.file_name || scannedFile.file_url);
+              }
             }
           }
         } catch (e) {
@@ -711,8 +757,23 @@ const TaskManager = ({ currentUser }) => {
     if (filesToUpload && filesToUpload.length > 0) {
       (async () => {
         try {
-          const { uploadMultipleTaskFiles } = await import('@/lib/uploadManager');
-          const uploadResult = await uploadMultipleTaskFiles(filesToUpload, editingTask.id, currentUser?.id);
+          // Vérifier si les fichiers ont des catégories
+          const hasCategories = filesToUpload.length > 0 && 
+                                filesToUpload[0].file && 
+                                filesToUpload[0].category;
+          
+          let uploadResult;
+          
+          if (hasCategories) {
+            const { uploadMultipleTaskFilesWithCategory } = await import('@/lib/uploadManager');
+            const firstCategory = filesToUpload[0].category;
+            const files = filesToUpload.map(obj => obj.file);
+            uploadResult = await uploadMultipleTaskFilesWithCategory(files, editingTask.id, currentUser?.id, firstCategory);
+          } else {
+            const { uploadMultipleTaskFiles } = await import('@/lib/uploadManager');
+            uploadResult = await uploadMultipleTaskFiles(filesToUpload, editingTask.id, currentUser?.id);
+          }
+          
           if (uploadResult.success) {
             const existingFiles = taskFiles[editingTask.id] || [];
             setTaskFiles((prev) => ({
@@ -749,11 +810,35 @@ const TaskManager = ({ currentUser }) => {
     if (scannedFiles && scannedFiles.length > 0) {
       (async () => {
         try {
-          const bucketReady = await ensureTaskScansBucket();
-          if (!bucketReady) return;
-          for (const file of scannedFiles) {
-            const scannedFile = await handleScanUpload(file, editingTask.id);
-            if (scannedFile) console.log('✅ Scan uploadé (background):', scannedFile.file_name || scannedFile.file_url);
+          // Vérifier si les fichiers scannés ont des catégories
+          const hasCategories = scannedFiles.length > 0 && 
+                                scannedFiles[0].file && 
+                                scannedFiles[0].category;
+          
+          if (hasCategories) {
+            // Nouveaux fichiers avec catégorie
+            const { uploadMultipleTaskFilesWithCategory } = await import('@/lib/uploadManager');
+            
+            const filesByCategory = scannedFiles.reduce((acc, obj) => {
+              if (!acc[obj.category]) acc[obj.category] = [];
+              acc[obj.category].push(obj.file);
+              return acc;
+            }, {});
+            
+            for (const [category, files] of Object.entries(filesByCategory)) {
+              const uploadResult = await uploadMultipleTaskFilesWithCategory(files, editingTask.id, currentUser?.id, category);
+              if (uploadResult.success) {
+                console.log(`✅ ${files.length} scan(s) uploadé(s) avec catégorie "${category}"`);
+              }
+            }
+          } else {
+            // Ancienne méthode
+            const bucketReady = await ensureTaskScansBucket();
+            if (!bucketReady) return;
+            for (const file of scannedFiles) {
+              const scannedFile = await handleScanUpload(file, editingTask.id);
+              if (scannedFile) console.log('✅ Scan uploadé (background):', scannedFile.file_name || scannedFile.file_url);
+            }
           }
         } catch (e) {
           console.error('Erreur lors de l\'upload des scans (background):', e);
@@ -1333,12 +1418,10 @@ const TaskManager = ({ currentUser }) => {
                                           {Math.round(file.file_size / 1024)} KB
                                         </span>
                                       )}
-                                      {file.document_category && (
-                                        <span className="text-xs text-blue-400 flex items-center gap-1">
-                                          <span className="inline-block w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
-                                          {file.document_category}
-                                        </span>
-                                      )}
+                                      <span className={`text-xs flex items-center gap-1 ${file.document_category ? 'text-blue-400' : 'text-slate-500'}`}>
+                                        <span className={`inline-block w-1.5 h-1.5 rounded-full ${file.document_category ? 'bg-blue-400' : 'bg-slate-500'}`}></span>
+                                        {file.document_category || 'Non classé'}
+                                      </span>
                                     </div>
                                   </div>
                                 </div>

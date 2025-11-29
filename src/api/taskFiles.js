@@ -110,7 +110,7 @@ function safeJsonArray(value) {
  * @param {string} fileData - Données du fichier en base64 pour backup local (optionnel, si ≤ 50Mo)
  * @returns {Promise<Object>} Résultat de l'insertion
  */
-export async function addTaskFile(taskId, fileName, fileUrl, fileSize = null, fileType = null, createdBy = null, fileData = null, caseId = null) {
+export async function addTaskFile(taskId, fileName, fileUrl, fileSize = null, fileType = null, createdBy = null, fileData = null, caseId = null, documentCategory = null) {
   try {
     // Ne jamais insérer si l'upload Storage n'a pas renvoyé d'URL publique
     if (!fileUrl || (typeof fileUrl === 'string' && fileUrl.trim() === '')) {
@@ -167,6 +167,7 @@ export async function addTaskFile(taskId, fileName, fileUrl, fileSize = null, fi
       file_url: fileUrl,
       file_size: safeFileSize, // Toujours un nombre ou null
       file_type: fileType,
+      document_category: documentCategory, // 📁 Catégorie du document
       created_by: createdBy
     };
 

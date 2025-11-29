@@ -34,6 +34,7 @@ BEGIN
           file_url,
           file_size,
           file_type,
+          document_category,
           created_by,
           created_at
         ) VALUES (
@@ -43,6 +44,7 @@ BEGIN
           NEW.file_url,
           NEW.file_size,
           NEW.file_type,
+          NEW.document_category,
           NEW.created_by,
           NEW.created_at
         );

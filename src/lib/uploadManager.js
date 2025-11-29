@@ -220,7 +220,8 @@ export async function uploadTaskFile(file, taskId, userId = null) {
       fileToUpload.type,
       userId,
       base64Data,
-      caseId // Passer le case_id pour synchronisation
+      caseId, // Passer le case_id pour synchronisation
+      documentCategory // 📁 Catégorie du document
     );
 
     if (!fileRecord.success) {
@@ -326,6 +327,52 @@ export async function uploadMultipleTaskFiles(files, taskId, userId = null) {
   
   if (finalResult.success && results.successes.length > 0) {
     console.log(`✅ ${results.successes.length} fichier(s) uploadé(s)`);
+  }
+  
+  return finalResult;
+}
+
+/**
+ * Upload multiple files pour une tâche avec catégorie
+ * @param {File[]} files - Array de fichiers à uploader
+ * @param {string} taskId - ID de la tâche
+ * @param {string} userId - ID de l'utilisateur
+ * @param {string} documentCategory - Catégorie du document
+ * @returns {Promise<Object>} Résultat des uploads
+ */
+export async function uploadMultipleTaskFilesWithCategory(files, taskId, userId = null, documentCategory = null) {
+  const results = {
+    successes: [],
+    errors: [],
+    total: files.length
+  };
+
+  // Parallel uploads to improve speed
+  const promises = files.map(f => uploadTaskFile(f, taskId, userId, documentCategory));
+  const settled = await Promise.allSettled(promises);
+
+  for (const s of settled) {
+    if (s.status === 'fulfilled') {
+      const result = s.value;
+      if (result && result.success) {
+        results.successes.push(result.data);
+      } else {
+        results.errors.push({ fileName: result?.data?.file_name || 'unknown', error: result?.error || 'unknown' });
+      }
+    } else {
+      results.errors.push({ fileName: 'unknown', error: s.reason?.message || String(s.reason) });
+    }
+  }
+
+  const finalResult = {
+    success: results.errors.length === 0,
+    data: results.successes,
+    errors: results.errors,
+    summary: `${results.successes.length}/${results.total} fichiers uploadés avec catégorie "${documentCategory}"`
+  };
+  
+  if (finalResult.success && results.successes.length > 0) {
+    console.log(`✅ ${results.successes.length} fichier(s) uploadé(s) avec catégorie "${documentCategory}"`);
   }
   
   return finalResult;

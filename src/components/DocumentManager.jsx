@@ -501,14 +501,12 @@ import React, { useState, useEffect, useMemo } from 'react';
                           transition={{ delay: fileIndex * 0.05 }}
                           className="border-b border-slate-800 hover:bg-slate-700/20"
                         >
-                          <td className="p-4">
-                            <div className="text-white font-medium">{doc.name}</div>
-                            {doc.category && (
-                              <div className="text-xs text-blue-400 mt-1 flex items-center gap-1">
-                                <span className="inline-block w-2 h-2 bg-blue-400 rounded-full"></span>
-                                {doc.category}
-                              </div>
-                            )}
+                          <td className=\"p-4\">
+                            <div className=\"text-white font-medium\">{doc.name}</div>
+                            <div className={`text-xs mt-1 flex items-center gap-1 ${doc.category ? 'text-blue-400' : 'text-slate-500'}`}>
+                              <span className={`inline-block w-2 h-2 rounded-full ${doc.category ? 'bg-blue-400' : 'bg-slate-500'}`}></span>
+                              {doc.category || 'Non classé'}
+                            </div>
                           </td>
                           <td className="p-4 text-slate-400">{new Date(doc.date).toLocaleDateString('fr-FR')}</td>
                           <td className="p-4 text-right">
