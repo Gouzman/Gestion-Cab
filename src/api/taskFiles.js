@@ -117,6 +117,26 @@ export async function addTaskFile(taskId, fileName, fileUrl, fileSize = null, fi
       return { success: false, error: { message: 'Aucune URL publique fournie — upload Storage non effectué' } };
     }
 
+    // VALIDATION CRITIQUE : Vérifier que task_id existe dans la table tasks
+    if (taskId) {
+      const { data: taskExists, error: taskCheckError } = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('id', taskId)
+        .single();
+
+      if (taskCheckError || !taskExists) {
+        console.error(`❌ task_id "${taskId}" n'existe pas dans la table tasks`);
+        return { 
+          success: false, 
+          error: { 
+            message: `Le task_id "${taskId}" n'existe pas. Veuillez créer la tâche avant d'uploader des fichiers.`,
+            code: 'INVALID_TASK_ID'
+          } 
+        };
+      }
+    }
+
     // Normaliser file_size en nombre (octets) si possible
     let safeFileSize = null;
     if (typeof fileSize === 'number' && Number.isFinite(fileSize)) {

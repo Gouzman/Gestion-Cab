@@ -3,88 +3,45 @@ import { motion } from 'framer-motion';
 import { 
   FileText, 
   Calendar, 
-  User, 
-  Edit, 
-  Trash2,
-  Scale,
-  Clock,
-  CheckCircle,
-  AlertCircle
+  User,
+  Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getClientDisplayName } from '@/lib/clientUtils';
 
-const CaseListItem = ({ case: caseData, index, onEdit, onDelete }) => {
-  const getStatusColor = (status) => {
+const CaseListItem = ({ case: caseData, clients = [], index, onEdit, onDelete }) => {
+  // Trouver le client associé
+  const client = clients.find(c => c.id === caseData.client_id);
+  const clientName = client ? getClientDisplayName(client) : 'Non assigné';
+
+  const getStatusBadge = (status) => {
     switch (status) {
-      case 'active':
-        return 'bg-green-500/20 text-green-400';
-      case 'pending':
-        return 'bg-orange-500/20 text-orange-400';
-      case 'closed':
-        return 'bg-blue-500/20 text-blue-400';
+      case 'en-cours':
+        return { label: 'Actif', color: 'bg-blue-500 text-white' };
+      case 'juge-acheve':
+        return { label: 'Clôturé', color: 'bg-green-500 text-white' };
+      case 'cloture':
+        return { label: 'Clôturé', color: 'bg-green-500 text-white' };
       case 'archive':
-        return 'bg-purple-500/20 text-purple-400';
+        return { label: 'En attente', color: 'bg-yellow-500 text-white' };
       default:
-        return 'bg-slate-500/20 text-slate-400';
+        return { label: 'Actif', color: 'bg-blue-500 text-white' };
     }
   };
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'active':
-        return <Scale className="w-4 h-4" />;
-      case 'pending':
-        return <Clock className="w-4 h-4" />;
-      case 'closed':
-        return <CheckCircle className="w-4 h-4" />;
-      default:
-        return <FileText className="w-4 h-4" />;
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    const labels = {
-      'active': 'Actif',
-      'pending': 'En attente',
-      'closed': 'Clôturé',
-      'archive': 'Archivé'
-    };
-    return labels[status] || status;
-  };
-
-  const getPriorityColor = (priority) => {
+  const getPriorityBadge = (priority) => {
     switch (priority) {
       case 'urgent':
-        return 'bg-red-500/20 text-red-400';
+        return { label: 'PRIORITÉ HAUTE', color: 'text-red-500' };
       case 'high':
-        return 'bg-orange-500/20 text-orange-400';
+        return { label: 'PRIORITÉ HAUTE', color: 'text-red-500' };
       case 'medium':
-        return 'bg-yellow-500/20 text-yellow-400';
+        return { label: 'PRIORITÉ MOYENNE', color: 'text-yellow-500' };
       case 'low':
-        return 'bg-green-500/20 text-green-400';
+        return { label: 'PRIORITÉ BASSE', color: 'text-green-500' };
       default:
-        return 'bg-slate-500/20 text-slate-400';
+        return { label: 'PRIORITÉ MOYENNE', color: 'text-yellow-500' };
     }
-  };
-
-  const getPriorityIcon = (priority) => {
-    switch (priority) {
-      case 'urgent':
-      case 'high':
-        return <AlertCircle className="w-3 h-3" />;
-      default:
-        return null;
-    }
-  };
-
-  const getPriorityLabel = (priority) => {
-    const labels = {
-      'urgent': 'Urgent',
-      'high': 'Élevée',
-      'medium': 'Moyenne',
-      'low': 'Basse'
-    };
-    return labels[priority] || priority;
   };
 
   const formatDate = (dateString) => {
@@ -96,139 +53,86 @@ const CaseListItem = ({ case: caseData, index, onEdit, onDelete }) => {
     });
   };
 
+  const statusBadge = getStatusBadge(caseData.status);
+  const priorityBadge = getPriorityBadge(caseData.priority);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-lg p-4 hover:border-slate-600/50 transition-all duration-200"
+      className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-lg p-6 hover:border-slate-600/50 transition-all duration-200"
     >
-      {/* Mobile layout */}
-      <div className="lg:hidden space-y-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-3 flex-1">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center flex-shrink-0">
-              <FileText className="w-5 h-5 text-white" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-white font-medium">{caseData.title || 'N/A'}</h3>
-            </div>
-          </div>
-          <div className="flex gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onEdit(caseData)}
-              className="w-8 h-8 text-slate-400 hover:text-white"
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onDelete(caseData.id)}
-              className="w-8 h-8 text-slate-400 hover:text-[#6D071A]"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
+      {/* Header: Titre + Badge Statut + Badge Priorité */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-semibold text-white">{caseData.title || 'N/A'}</h3>
+          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium ${statusBadge.color}`}>
+            <FileText className="w-3 h-3" />
+            {statusBadge.label}
+          </span>
+        </div>
+        <span className={`text-xs font-bold ${priorityBadge.color}`}>
+          {priorityBadge.label}
+        </span>
+      </div>
+
+      {/* ID du dossier et Réf dossier */}
+      <div className="mb-4">
+        <p className="text-sm text-slate-300">
+          <span className="font-medium text-slate-400">ID du dossier:</span> {caseData.code_dossier || 'Non défini'} 
+          <span className="mx-3">•</span>
+          <span className="font-medium text-slate-400">Réf dossier:</span> {caseData.ref_dossier || 'Non défini'}
+        </p>
+      </div>
+
+      {/* Grille d'informations: 4 colonnes */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        {/* Type de dossier */}
+        <div>
+          <p className="text-xs text-slate-400 mb-1">Type de dossier</p>
+          <p className="text-sm text-slate-200 font-medium">{caseData.case_type || 'Non défini'}</p>
         </div>
 
-        <div className="space-y-2 pl-13">
-          <div className="flex items-center gap-2">
-            <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(caseData.status)}`}>
-              {getStatusIcon(caseData.status)}
-              <span>{getStatusLabel(caseData.status)}</span>
-            </div>
-            {caseData.priority && (
-              <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(caseData.priority)}`}>
-                {getPriorityIcon(caseData.priority)}
-                <span>{getPriorityLabel(caseData.priority)}</span>
-              </div>
-            )}
-          </div>
-          {caseData.assigned_to && (
-            <div className="flex items-center gap-2 text-sm">
-              <User className="w-4 h-4 text-slate-400" />
-              <span className="text-slate-300">{caseData.assigned_to}</span>
-            </div>
-          )}
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="w-4 h-4 text-slate-400" />
-            <span className="text-slate-400">{formatDate(caseData.created_at)}</span>
-          </div>
+        {/* Client */}
+        <div>
+          <p className="text-xs text-slate-400 mb-1">Client</p>
+          <p className="text-sm text-slate-200 font-medium">{clientName}</p>
+        </div>
+
+        {/* Assigné à */}
+        <div>
+          <p className="text-xs text-slate-400 mb-1">Assigné à</p>
+          <p className="text-sm text-slate-200 font-medium">{caseData.assigned_to || 'Non assigné'}</p>
+        </div>
+
+        {/* Date de début */}
+        <div>
+          <p className="text-xs text-slate-400 mb-1">Date de début</p>
+          <p className="text-sm text-slate-200 font-medium">{formatDate(caseData.created_at)}</p>
         </div>
       </div>
 
-      {/* Desktop layout - 5 columns */}
-      <div className="hidden lg:grid lg:grid-cols-5 gap-4 items-center">
-        {/* Column 1: Titre & Type */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center flex-shrink-0">
-            <FileText className="w-5 h-5 text-white" />
+      {/* Footer: Documents + Prochaine audience + Bouton */}
+      <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
+        <div className="flex items-center gap-4 text-sm text-slate-300">
+          <div className="flex items-center gap-1">
+            <FileText className="w-4 h-4" />
+            <span>{caseData.attachments?.length || 0} documents</span>
           </div>
-          <div>
-            <div className="text-white font-medium truncate">{caseData.title || 'N/A'}</div>
-          </div>
-        </div>
-
-        {/* Column 2: Statut */}
-        <div>
-          <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(caseData.status)}`}>
-            {getStatusIcon(caseData.status)}
-            <span>{getStatusLabel(caseData.status)}</span>
-          </div>
-        </div>
-
-        {/* Column 3: Priorité */}
-        <div>
-          {caseData.priority ? (
-            <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(caseData.priority)}`}>
-              {getPriorityIcon(caseData.priority)}
-              <span>{getPriorityLabel(caseData.priority)}</span>
+          {caseData.next_hearing && (
+            <div className="flex items-center gap-1">
+              <Clock className="w-4 h-4" />
+              <span>Prochaine audience: {formatDate(caseData.next_hearing)}</span>
             </div>
-          ) : (
-            <span className="text-slate-500 text-sm">-</span>
           )}
         </div>
-
-        {/* Column 4: Assigné à */}
-        <div>
-          {caseData.assigned_to ? (
-            <div className="flex items-center gap-2 text-sm">
-              <User className="w-4 h-4 text-slate-400" />
-              <span className="text-slate-300 truncate">{caseData.assigned_to}</span>
-            </div>
-          ) : (
-            <span className="text-slate-500 text-sm">Non assigné</span>
-          )}
-        </div>
-
-        {/* Column 5: Date & Actions */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <Calendar className="w-4 h-4" />
-            <span>{formatDate(caseData.created_at)}</span>
-          </div>
-          <div className="flex gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onEdit(caseData)}
-              className="w-8 h-8 text-slate-400 hover:text-white"
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => onDelete(caseData.id)}
-              className="w-8 h-8 text-slate-400 hover:text-[#6D071A]"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
+        <Button
+          onClick={() => onEdit(caseData)}
+          className="bg-slate-700 border border-slate-600 text-slate-200 hover:bg-slate-600 px-4 py-2 rounded-md text-sm font-medium"
+        >
+          Voir détails
+        </Button>
       </div>
     </motion.div>
   );

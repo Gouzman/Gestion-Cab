@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, Upload, Search, FileText, FolderOpen } from 'lucide-react';
+import { X, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -14,21 +14,16 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
     file: null
   });
   const [cases, setCases] = useState([]);
-  const [filteredCases, setFilteredCases] = useState([]);
-  const [caseSearchTerm, setCaseSearchTerm] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
-  const fileInputLocalRef = useRef(null);
 
-  // Catégories de documents
+  // Catégories de documents (5 catégories obligatoires)
   const categories = [
-    { value: 'contrat', label: 'Contrat' },
-    { value: 'facture', label: 'Facture' },
-    { value: 'correspondance', label: 'Correspondance' },
-    { value: 'procedure', label: 'Procédure' },
-    { value: 'piece_identite', label: 'Pièce d\'identité' },
-    { value: 'attestation', label: 'Attestation' },
-    { value: 'autre', label: 'Autre' }
+    { value: 'Documents de suivi et facturation', label: 'Documents de suivi et facturation' },
+    { value: 'Pièces', label: 'Pièces' },
+    { value: 'Écritures', label: 'Écritures' },
+    { value: 'Courriers', label: 'Courriers' },
+    { value: 'Observations et notes', label: 'Observations et notes' }
   ];
 
   useEffect(() => {
@@ -42,23 +37,10 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
         console.error('Erreur chargement dossiers:', error);
       } else {
         setCases(data || []);
-        setFilteredCases(data || []);
       }
     };
     fetchCases();
   }, []);
-
-  useEffect(() => {
-    if (caseSearchTerm.trim() === '') {
-      setFilteredCases(cases);
-    } else {
-      const filtered = cases.filter(c => 
-        (c.title && c.title.toLowerCase().includes(caseSearchTerm.toLowerCase())) ||
-        (c.id && c.id.toLowerCase().includes(caseSearchTerm.toLowerCase()))
-      );
-      setFilteredCases(filtered);
-    }
-  }, [caseSearchTerm, cases]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -153,30 +135,89 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
     }
 
     try {
-      // Ici, vous pouvez implémenter la logique d'upload vers Supabase Storage
-      // Pour l'instant, on simule juste la sauvegarde des métadonnées
+      // 1. Upload du fichier vers Supabase Storage
+      const fileExt = formData.file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `documents/${fileName}`;
+
+      // Lire le fichier comme ArrayBuffer pour un upload propre
+      const fileBuffer = await formData.file.arrayBuffer();
       
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('task-files')
+        .upload(filePath, fileBuffer, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: formData.file.type
+        });
+
+      if (uploadError) {
+        console.error('Erreur upload storage:', uploadError);
+        
+        // Message d'erreur plus détaillé selon le type d'erreur
+        let errorMessage = 'Impossible de téléverser le fichier vers le stockage.';
+        if (uploadError.message?.includes('Bucket not found')) {
+          errorMessage = 'Le bucket de stockage "task-files" n\'existe pas. Veuillez le créer dans Supabase Storage.';
+        } else if (uploadError.message?.includes('new row violates')) {
+          errorMessage = 'Erreur de permissions. Vérifiez les politiques RLS du bucket.';
+        }
+        
+        toast({
+          variant: 'destructive',
+          title: 'Erreur d\'upload',
+          description: errorMessage
+        });
+        return;
+      }
+
+      // 2. Obtenir l'URL publique du fichier
+      const { data: { publicUrl } } = supabase.storage
+        .from('task-files')
+        .getPublicUrl(filePath);
+
+      // 3. Enregistrer les métadonnées dans tasks_files
+      // ✅ Utilisation correcte : case_id pour dossier, task_id reste null (documents généraux)
       const payload = {
-        document_reference: formData.document_reference,
-        linked_case_id: formData.linked_case_id || null,
-        category: formData.category,
-        description: formData.description,
+        task_id: null, // Pas de tâche spécifique pour les documents généraux du module Documents
+        case_id: formData.linked_case_id || null, // Lié à un dossier (case) si sélectionné
         file_name: formData.file.name,
-        file_size: formData.file.size,
+        file_url: publicUrl,
         file_type: formData.file.type,
-        uploaded_by: currentUser.id,
-        created_at: new Date().toISOString()
+        file_size: formData.file.size,
+        document_category: formData.category, // Nouvelle colonne des catégories
+        created_by: currentUser.id
       };
 
-      console.log('Document payload:', payload);
+      const { data: dbData, error: dbError } = await supabase
+        .from('tasks_files')
+        .insert([payload])
+        .select()
+        .single();
+
+      if (dbError) {
+        console.error('Erreur sauvegarde DB:', dbError);
+        
+        // Nettoyer le fichier uploadé si la sauvegarde échoue
+        await supabase.storage.from('task-files').remove([filePath]);
+        
+        toast({
+          variant: 'destructive',
+          title: 'Erreur de sauvegarde',
+          description: 'Impossible d\'enregistrer les métadonnées du document.'
+        });
+        return;
+      }
+
+      console.log('✅ Document uploadé avec succès:', dbData);
 
       toast({
         title: '✅ Document transféré',
         description: `"${formData.file.name}" a été ajouté avec succès.`
       });
 
+      // Rafraîchir la liste des documents
       if (onDocumentUploaded) {
-        onDocumentUploaded(payload);
+        onDocumentUploaded(dbData);
       }
       
       onCancel();
@@ -202,16 +243,16 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-xl p-6 w-full max-w-2xl"
+        className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-slate-800">Transférer un document</h2>
+          <h2 className="text-2xl font-bold text-white">Transférer un document</h2>
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={onCancel}
-            className="text-slate-400 hover:text-slate-800"
+            className="text-slate-400 hover:text-white"
           >
             <X className="w-5 h-5" />
           </Button>
@@ -225,26 +266,26 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
             onDrop={handleDrop}
             className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
               isDragging 
-                ? 'border-blue-500 bg-blue-50' 
-                : 'border-slate-300 bg-slate-50'
+                ? 'border-indigo-500 bg-indigo-500/10' 
+                : 'border-slate-600 bg-slate-700/30'
             }`}
           >
             <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-            <p className="text-slate-600 mb-1">
+            <p className="text-slate-300 mb-1">
               <button
                 type="button"
-                onClick={() => fileInputLocalRef.current?.click()}
-                className="text-blue-600 hover:underline font-medium"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium"
               >
                 Cliquez pour transférer
               </button>
               {' '}ou glissez-déposez
             </p>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-400">
               PDF, DOCX, PNG, JPG (MAX. 10MB)
             </p>
             {formData.file && (
-              <p className="mt-3 text-sm text-green-600 font-medium">
+              <p className="mt-3 text-sm text-green-400 font-medium">
                 ✓ {formData.file.name}
               </p>
             )}
@@ -253,7 +294,7 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Réf. Document (manuel) */}
             <div>
-              <label htmlFor="document-reference" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="document-reference" className="block text-sm font-medium text-slate-300 mb-2">
                 Réf. Document *
               </label>
               <input
@@ -263,74 +304,58 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
                 value={formData.document_reference}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 placeholder="Référence interne"
               />
             </div>
 
             {/* Dossier associé */}
             <div>
-              <label htmlFor="linked-case" className="block text-sm font-medium text-slate-700 mb-2">
+              <label htmlFor="linked-case" className="block text-sm font-medium text-slate-300 mb-2">
                 Dossier associé
               </label>
-              <div className="relative">
-                <select
-                  id="linked-case"
-                  name="linked_case_id"
-                  value={formData.linked_case_id}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-                >
-                  <option value="">Choisir un dossier...</option>
-                  {filteredCases.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.id} - {c.title}
-                    </option>
-                  ))}
-                </select>
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Recherche dossier */}
-            <div>
-              <input
-                type="text"
-                placeholder="Rechercher un dossier..."
-                value={caseSearchTerm}
-                onChange={(e) => setCaseSearchTerm(e.target.value)}
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Catégorie */}
-            <div>
-              <label htmlFor="category" className="block text-sm font-medium text-slate-700 mb-2">
-                Catégorie *
-              </label>
               <select
-                id="category"
-                name="category"
-                value={formData.category}
+                id="linked-case"
+                name="linked_case_id"
+                value={formData.linked_case_id}
                 onChange={handleChange}
-                required
-                className="w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="">Sélectionner une catégorie...</option>
-                {categories.map(cat => (
-                  <option key={cat.value} value={cat.value}>
-                    {cat.label}
+                <option value="">Choisir un dossier...</option>
+                {cases.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.id} - {c.title}
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
+          {/* Catégorie */}
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-slate-300 mb-2">
+              Catégorie *
+            </label>
+            <select
+              id="category"
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Sélectionner une catégorie...</option>
+              {categories.map(cat => (
+                <option key={cat.value} value={cat.value}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Description */}
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-slate-700 mb-2">
+            <label htmlFor="description" className="block text-sm font-medium text-slate-300 mb-2">
               Description
             </label>
             <textarea
@@ -339,41 +364,14 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
               value={formData.description}
               onChange={handleChange}
               rows={4}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               placeholder="Ajouter une brève description du document..."
             />
           </div>
 
-          {/* Boutons double mode d'import */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
-            >
-              <FileText className="w-4 h-4" />
-              Choisir des fichiers
-            </button>
-            <button
-              type="button"
-              onClick={() => fileInputLocalRef.current?.click()}
-              className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
-            >
-              <FolderOpen className="w-4 h-4" />
-              Importer fichier
-            </button>
-          </div>
-
-          {/* Inputs cachés pour les fichiers */}
+          {/* Input caché pour le fichier */}
           <input
             ref={fileInputRef}
-            type="file"
-            className="hidden"
-            accept=".pdf,.docx,.png,.jpg,.jpeg"
-            onChange={handleFileInputChange}
-          />
-          <input
-            ref={fileInputLocalRef}
             type="file"
             className="hidden"
             accept=".pdf,.docx,.png,.jpg,.jpeg"
@@ -386,13 +384,13 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
               type="button" 
               variant="outline" 
               onClick={onCancel}
-              className="flex-1 border-slate-300 text-slate-700 hover:bg-slate-100"
+              className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
             >
               Annuler
             </Button>
             <Button 
               type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white"
             >
               Transférer
             </Button>

@@ -83,8 +83,8 @@ import React, { useState, useEffect } from 'react';
       useEffect(() => {
         const fetchDocuments = async () => {
           try {
-            // Récupérer directement les fichiers depuis la table tasks_files avec jointure
-            let query = supabase
+            // Récupérer les fichiers depuis tasks_files (avec jointure optionnelle)
+            const { data: filesData, error } = await supabase
               .from('tasks_files')
               .select(`
                 id,
@@ -92,70 +92,40 @@ import React, { useState, useEffect } from 'react';
                 file_url,
                 file_type,
                 file_size,
+                document_category,
                 created_at,
                 task_id,
-                tasks!inner(id, title, assigned_to_id)
+                created_by
               `)
               .order('created_at', { ascending: false });
 
-            // Filtrer par utilisateur si non-admin
-            if (!isAdmin) {
-              query = query.eq('tasks.assigned_to_id', currentUser.id);
-            }
-
-            const { data: filesData, error } = await query;
+            console.log('📂 Documents chargés:', filesData);
 
             if (error) {
-              // Si la table n'existe pas encore (PGRST205), utiliser fallback silencieux
-              if (error.code === 'PGRST205' || error.code === 'PGRST204') {
-                console.warn('⚠️ La table tasks_files n\'existe pas encore');
-                toast({ 
-                  title: "📋 Aucun document", 
-                  description: "La table des fichiers n'est pas encore configurée."
-                });
-                setDocuments([]);
-                return;
-              }
-              
-              // Si la jointure échoue (PGRST301 ou 404), relancer sans jointure
-              if (error.code === 'PGRST301' || error.status === 404) {
-                console.warn('⚠️ Jointure tasks!inner échouée, fallback sur requête simple');
-                const { data: simpleData, error: simpleError } = await supabase
-                  .from('tasks_files')
-                  .select('*')
-                  .order('created_at', { ascending: false });
-                
-                if (simpleError) {
-                  console.error('Erreur fallback:', simpleError);
-                  setDocuments([]);
-                  return;
-                }
-                
-                // Transformer les données sans info de tâche
-                const fallbackDocs = (simpleData || []).map(file => ({
-                  id: file.id,
-                  name: file.file_name,
-                  path: file.file_url,
-                  url: file.file_url,
-                  taskTitle: 'Tâche non disponible',
-                  taskId: file.task_id,
-                  date: file.created_at,
-                  fileType: file.file_type,
-                  fileSize: file.file_size,
-                  timeSpent: 0,
-                }));
-                
-                setDocuments(fallbackDocs);
-                return;
-              }
-              
               console.error('Erreur lors de la récupération des documents:', error);
-              toast({ 
-                variant: "destructive", 
-                title: "Erreur", 
-                description: "Impossible de charger les documents." 
-              });
+              if (error.code === 'PGRST204' || error.code === 'PGRST116') {
+                console.warn('⚠️ La table tasks_files n\'existe pas encore');
+              }
+              setDocuments([]);
               return;
+            }
+
+            // Récupérer les infos des dossiers (cases) pour ceux qui ont un task_id
+            const caseIds = [...new Set(filesData.filter(f => f.task_id).map(f => f.task_id))];
+            let casesMap = {};
+            
+            if (caseIds.length > 0) {
+              const { data: casesData } = await supabase
+                .from('cases')
+                .select('id, title')
+                .in('id', caseIds);
+              
+              if (casesData) {
+                casesMap = casesData.reduce((acc, c) => {
+                  acc[c.id] = c.title;
+                  return acc;
+                }, {});
+              }
             }
 
             // Transformer les données pour l'affichage
@@ -164,11 +134,12 @@ import React, { useState, useEffect } from 'react';
               name: file.file_name,
               path: file.file_url,
               url: file.file_url,
-              taskTitle: file.tasks?.title || 'Tâche supprimée',
+              taskTitle: file.task_id ? (casesMap[file.task_id] || 'Dossier supprimé') : 'Document indépendant',
               taskId: file.task_id,
               date: file.created_at,
               fileType: file.file_type,
               fileSize: file.file_size,
+              category: file.document_category,
               timeSpent: 0,
             }));
             
@@ -293,13 +264,39 @@ import React, { useState, useEffect } from 'react';
         }
       };
 
-      const handleDocumentUploaded = (newDoc) => {
-        // Rafraîchir la liste des documents
-        toast({
-          title: '✅ Document ajouté',
-          description: 'Le document a été transféré avec succès.'
-        });
-        // Vous pouvez ajouter une logique pour rafraîchir la liste ici
+      const handleDocumentUploaded = async (newDoc) => {
+        console.log('🔄 Rafraîchissement après upload:', newDoc);
+        
+        // Récupérer le titre du dossier si associé
+        let taskTitle = 'Document indépendant';
+        if (newDoc.task_id) {
+          const { data: caseData } = await supabase
+            .from('cases')
+            .select('title')
+            .eq('id', newDoc.task_id)
+            .single();
+          
+          if (caseData) {
+            taskTitle = caseData.title;
+          }
+        }
+
+        // Ajouter le nouveau document en haut de la liste
+        const newDocument = {
+          id: newDoc.id,
+          name: newDoc.file_name,
+          path: newDoc.file_url,
+          url: newDoc.file_url,
+          taskTitle: taskTitle,
+          taskId: newDoc.task_id,
+          date: newDoc.created_at,
+          fileType: newDoc.file_type,
+          fileSize: newDoc.file_size,
+          category: newDoc.document_category,
+          timeSpent: 0,
+        };
+
+        setDocuments(prev => [newDocument, ...prev]);
       };
 
       const filteredDocuments = documents.filter(doc => {

@@ -14,6 +14,32 @@ import { isPdfDocument, optimizePdfForViewer, checkPdfCompatibility } from "@/li
  */
 export async function uploadTaskFile(file, taskId, userId = null) {
   try {
+    // 0. VALIDATION CRITIQUE : Vérifier que taskId est valide et existe dans la table tasks
+    if (!taskId || typeof taskId !== 'string' || taskId.trim() === '') {
+      console.error(`❌ taskId invalide ou manquant pour le fichier "${file.name}"`);
+      return {
+        success: false,
+        error: 'ID de tâche manquant. Veuillez créer la tâche avant d\'uploader des fichiers.'
+      };
+    }
+
+    // Vérifier que la tâche existe réellement dans la base de données
+    const { data: taskExists, error: taskCheckError } = await supabase
+      .from('tasks')
+      .select('id')
+      .eq('id', taskId)
+      .single();
+
+    if (taskCheckError || !taskExists) {
+      console.error(`❌ La tâche "${taskId}" n'existe pas dans la base de données`);
+      return {
+        success: false,
+        error: `La tâche n'existe pas. Veuillez enregistrer la tâche avant d'uploader des fichiers.`
+      };
+    }
+
+    console.log(`✅ Validation task_id: "${taskId}" existe dans la table tasks`);
+
     // 1. Validation de la taille (50 Mo maximum)
     const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 Mo
     if (file.size > MAX_FILE_SIZE) {

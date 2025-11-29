@@ -32,6 +32,7 @@ const ClientManager = () => {
       const transformedClients = data.map(client => ({
         ...client,
         name: getClientDisplayName(client), // Utilisation de la fonction dynamique
+        clientCode: client.client_code, // Numéro client (AA.NNN)
         firstName: client.first_name,
         lastName: client.last_name,
         postalCode: client.postal_code,

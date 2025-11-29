@@ -115,7 +115,7 @@ const ClientForm = ({ client, onSubmit, onCancel }) => {
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 <Building className="w-4 h-4 inline mr-2" />
-                Dénomination *
+                Nom de l'entreprise *
               </label>
               <input
                 type="text"
@@ -128,23 +128,8 @@ const ClientForm = ({ client, onSubmit, onCancel }) => {
               />
             </div>
           ) : (
-            // Pour un particulier : prénom et nom obligatoires
+            // Pour un particulier : nom + prénoms obligatoires
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Prénom *
-                </label>
-                <input
-                  type="text"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="Jean"
-                />
-              </div>
-
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   Nom *
@@ -157,6 +142,21 @@ const ClientForm = ({ client, onSubmit, onCancel }) => {
                   required
                   className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   placeholder="Dupont"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Prénoms *
+                </label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Jean"
                 />
               </div>
             </div>

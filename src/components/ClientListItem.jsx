@@ -41,8 +41,15 @@ const ClientListItem = ({ client, index, onEdit, onDelete }) => {
               {getClientDisplayName(client)}
             </h4>
           </div>
-          <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-700/50 text-slate-300 border border-slate-600/30">
-            {getTypeLabel(client.type)}
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-700/50 text-slate-300 border border-slate-600/30">
+              {getTypeLabel(client.type)}
+            </div>
+            {client.clientCode && (
+              <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-600/20 text-indigo-300 border border-indigo-500/30">
+                N° {client.clientCode}
+              </div>
+            )}
           </div>
         </div>
 

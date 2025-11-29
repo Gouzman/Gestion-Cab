@@ -9,9 +9,11 @@ import CaseListItem from '@/components/CaseListItem';
 
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getCaseColumns, getCaseInsertColumns } from '@/config/features';
 
 const CaseManager = ({ currentUser }) => {
   const [cases, setCases] = useState([]);
+  const [clients, setClients] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingCase, setEditingCase] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -23,7 +25,17 @@ const CaseManager = ({ currentUser }) => {
 
   useEffect(() => {
     fetchCases();
+    fetchClients();
   }, []);
+
+  const fetchClients = async () => {
+    const { data, error } = await supabase.from('clients').select('id, name, type, first_name, last_name, company');
+    if (error) {
+      console.error("Erreur lors du chargement des clients :", error.message);
+    } else {
+      setClients(data || []);
+    }
+  };
 
   const fetchCases = async () => {
     const { data, error } = await supabase.from('cases').select('*').order('created_at', { ascending: false });
@@ -43,12 +55,8 @@ const CaseManager = ({ currentUser }) => {
   };
 
   const handleAddCase = async (caseData) => {
-    // Liste des colonnes valides dans la table cases
-    const validColumns = [
-      'title', 'client_id', 'client_type', 'client', 'opposing_party',
-      'description', 'status', 'priority',
-      'honoraire', 'notes', 'attachments', 'visible_to', 'created_by'
-    ];
+    // Liste des colonnes valides - s'adapte automatiquement selon l'état de la migration
+    const validColumns = getCaseInsertColumns();
     
     // Filtrer le payload pour ne garder que les colonnes valides
     const payload = {};
@@ -61,10 +69,14 @@ const CaseManager = ({ currentUser }) => {
     // Ajouter le créateur
     payload.created_by = currentUser?.id;
     
-    // Corriger les champs numériques NaN
+    // Corriger les champs numériques NaN et nettoyer les dates vides
     for (const key in payload) {
       if (typeof payload[key] === "number" && Number.isNaN(payload[key])) {
         payload[key] = 0;
+      }
+      // Supprimer les chaînes vides pour les champs de type date
+      if (key === 'next_hearing' && (payload[key] === '' || payload[key] === null || payload[key] === undefined)) {
+        delete payload[key];
       }
     }
     
@@ -83,12 +95,8 @@ const CaseManager = ({ currentUser }) => {
   };
 
   const handleEditCase = async (caseData) => {
-    // Liste des colonnes valides dans la table cases
-    const validColumns = [
-      'title', 'client_id', 'client_type', 'client', 'opposing_party',
-      'description', 'status', 'priority',
-      'honoraire', 'notes', 'attachments', 'visible_to'
-    ];
+    // Liste des colonnes valides - s'adapte automatiquement selon l'état de la migration
+    const validColumns = getCaseColumns();
     
     // Filtrer le payload pour ne garder que les colonnes valides
     const payload = {};
@@ -102,6 +110,10 @@ const CaseManager = ({ currentUser }) => {
     for (const key in payload) {
       if (typeof payload[key] === "number" && Number.isNaN(payload[key])) {
         payload[key] = 0;
+      }
+      // Supprimer les chaînes vides pour les champs de type date
+      if (key === 'next_hearing' && (payload[key] === '' || payload[key] === null || payload[key] === undefined)) {
+        delete payload[key];
       }
     }
     
@@ -225,21 +237,13 @@ const CaseManager = ({ currentUser }) => {
         </div>
       </div>
 
-      {/* Column Headers */}
-      <div className="hidden lg:grid lg:grid-cols-5 gap-4 px-6 py-3 bg-slate-900/50 backdrop-blur-sm rounded-lg border border-slate-700/50 text-sm text-slate-400 font-medium">
-        <div>Titre & Type</div>
-        <div>Statut</div>
-        <div>Priorité</div>
-        <div>Assigné à</div>
-        <div>Date & Actions</div>
-      </div>
-
       {/* Case List */}
       <div className="space-y-4">
         {filteredCases.map((caseItem, index) => (
           <CaseListItem
             key={caseItem.id}
             case={caseItem}
+            clients={clients}
             index={index}
             onEdit={(caseItem) => {
               setEditingCase(caseItem);
