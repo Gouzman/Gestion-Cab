@@ -34,7 +34,7 @@ const AdminUserHistory = () => {
       // Récupérer les données utilisateurs de notre table profiles
       const { data: customUsers, error: customError } = await supabase
         .from('profiles')
-        .select('id, email, name, role, function, created_at, updated_at');
+        .select('id, email, name, role, "function", created_at, updated_at');
 
       if (customError) {
         throw new Error(`Erreur données: ${customError.message}`);

@@ -407,7 +407,34 @@ BEGIN
   -- 1. Hasher le mot de passe initial
   password_hash := crypt(initial_password, gen_salt('bf'));
   
-  -- 2. Insérer dans profiles avec must_change_password = true
+  -- 2. Créer d'abord l'utilisateur dans auth.users (requis par la FK)
+  INSERT INTO auth.users (
+    id,
+    instance_id,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    created_at,
+    updated_at,
+    raw_user_meta_data,
+    aud,
+    role
+  )
+  VALUES (
+    user_id,
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    user_email,
+    password_hash,
+    NOW(),  -- Email confirmé immédiatement (pas de vérification)
+    NOW(),
+    NOW(),
+    json_build_object('name', user_name, 'role', user_role, 'function', user_function),
+    'authenticated',
+    'authenticated'
+  )
+  ON CONFLICT (id) DO NOTHING;
+  
+  -- 3. Insérer dans profiles avec must_change_password = true
   INSERT INTO public.profiles (
     id, 
     email, 

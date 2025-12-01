@@ -48,10 +48,11 @@ const getAllowedOrigins = () => {
              /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
     };
   } else {
-    // Mode production : whitelist stricte
-    // TODO: Remplacer par votre domaine de production réel
+    // Mode production : whitelist des domaines autorisés
     const productionOrigins = [
-      process.env.VITE_PRODUCTION_URL, // Ex: https://gestion-cab.votredomaine.com
+      'https://www.ges-cab.com',
+      'https://ges-cab.com',
+      process.env.VITE_PRODUCTION_URL,
     ].filter(Boolean); // Enlève les valeurs undefined
     
     return (origin) => {
@@ -75,8 +76,8 @@ app.use(cors({
     }
   },
   methods: ['POST', 'GET', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Accept'],
+  credentials: false // Pas de credentials pour éviter les complications CORS
 }));
 
 // Configuration de multer pour l'upload temporaire
@@ -380,65 +381,93 @@ app.post('/normalize-pdf', uploadLimiter, upload.single('file'), async (req, res
  * Utilise spawn() au lieu de exec() pour éviter les injections shell
  */
 app.get('/health', healthLimiter, async (req, res) => {
-  // Vérifier que Ghostscript est disponible
-  const checkGs = () => new Promise((resolve) => {
-    const gs = spawn('gs', ['--version']);
-    let stdout = '';
-    gs.stdout.on('data', (data) => { stdout += data.toString(); });
-    gs.on('error', () => resolve({ available: false, error: 'Ghostscript non trouvé' }));
-    gs.on('close', (code) => {
-      if (code === 0) {
-        resolve({ available: true, version: stdout.trim() });
-      } else {
-        resolve({ available: false, error: 'Erreur Ghostscript' });
-      }
+  try {
+    // Headers CORS explicites pour le health check
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Accept');
+    
+    // Vérifier que Ghostscript est disponible
+    const checkGs = () => new Promise((resolve) => {
+      const gs = spawn('gs', ['--version']);
+      let stdout = '';
+      gs.stdout.on('data', (data) => { stdout += data.toString(); });
+      gs.on('error', () => resolve({ available: false, error: 'Ghostscript non trouvé' }));
+      gs.on('close', (code) => {
+        if (code === 0) {
+          resolve({ available: true, version: stdout.trim() });
+        } else {
+          resolve({ available: false, error: 'Erreur Ghostscript' });
+        }
+      });
+      
+      // Timeout de 3 secondes
+      setTimeout(() => {
+        gs.kill();
+        resolve({ available: false, error: 'Timeout Ghostscript' });
+      }, 3000);
     });
-  });
 
-  // Vérifier que LibreOffice est disponible
-  const checkLo = () => new Promise((resolve) => {
-    const soffice = spawn('soffice', ['--version']);
-    let stdout = '';
-    soffice.stdout.on('data', (data) => { stdout += data.toString(); });
-    soffice.on('error', () => resolve({ available: false, error: 'LibreOffice non trouvé' }));
-    soffice.on('close', (code) => {
-      if (code === 0) {
-        resolve({ available: true, version: stdout.trim() });
-      } else {
-        resolve({ available: false, error: 'Erreur LibreOffice' });
-      }
+    // Vérifier que LibreOffice est disponible
+    const checkLo = () => new Promise((resolve) => {
+      const soffice = spawn('soffice', ['--version']);
+      let stdout = '';
+      soffice.stdout.on('data', (data) => { stdout += data.toString(); });
+      soffice.on('error', () => resolve({ available: false, error: 'LibreOffice non trouvé' }));
+      soffice.on('close', (code) => {
+        if (code === 0) {
+          resolve({ available: true, version: stdout.trim() });
+        } else {
+          resolve({ available: false, error: 'Erreur LibreOffice' });
+        }
+      });
+      
+      // Timeout de 3 secondes
+      setTimeout(() => {
+        soffice.kill();
+        resolve({ available: false, error: 'Timeout LibreOffice' });
+      }, 3000);
     });
-  });
 
-  const [gsResult, loResult] = await Promise.all([checkGs(), checkLo()]);
+    const [gsResult, loResult] = await Promise.all([checkGs(), checkLo()]);
 
-  if (!gsResult.available && !loResult.available) {
-    res.status(500).json({
+    // Toujours retourner 200 OK pour éviter les erreurs dans le navigateur
+    // Le client vérifiera le champ 'status' pour connaître l'état réel
+    if (!gsResult.available && !loResult.available) {
+      res.status(200).json({
+        status: 'error',
+        message: 'Ghostscript et LibreOffice non disponibles',
+        ghostscript: gsResult.error,
+        libreoffice: loResult.error
+      });
+    } else if (!gsResult.available) {
+      res.status(200).json({
+        status: 'partial',
+        message: 'Ghostscript non disponible (conversion Word → PDF disponible)',
+        libreoffice_version: loResult.version,
+        ghostscript: gsResult.error
+      });
+    } else if (!loResult.available) {
+      res.status(200).json({
+        status: 'partial',
+        message: 'LibreOffice non disponible (normalisation PDF disponible)',
+        ghostscript_version: gsResult.version,
+        libreoffice: loResult.error
+      });
+    } else {
+      res.status(200).json({
+        status: 'ok',
+        ghostscript_version: gsResult.version,
+        libreoffice_version: loResult.version,
+        message: 'Service de conversion et normalisation opérationnel'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Erreur dans health check:', error);
+    res.status(200).json({
       status: 'error',
-      message: 'Ghostscript et LibreOffice non disponibles',
-      ghostscript: gsResult.error,
-      libreoffice: loResult.error
-    });
-  } else if (!gsResult.available) {
-    res.status(500).json({
-      status: 'partial',
-      message: 'Ghostscript non disponible (conversion Word → PDF disponible)',
-      libreoffice_version: loResult.version,
-      ghostscript: gsResult.error
-    });
-  } else if (!loResult.available) {
-    res.status(500).json({
-      status: 'partial',
-      message: 'LibreOffice non disponible (normalisation PDF disponible)',
-      ghostscript_version: gsResult.version,
-      libreoffice: loResult.error
-    });
-  } else {
-    res.json({
-      status: 'ok',
-      ghostscript_version: gsResult.version,
-      libreoffice_version: loResult.version,
-      message: 'Service de conversion et normalisation opérationnel'
+      message: 'Erreur lors de la vérification du service',
+      error: error.message
     });
   }
 });

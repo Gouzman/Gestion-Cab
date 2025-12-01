@@ -88,7 +88,8 @@ async function optimizeViaSupabaseFunction(file) {
     formData.append('file', file);
     
     // Appeler le service de normalisation Ghostscript local
-    const response = await fetch('http://localhost:3001/normalize-pdf', {
+    const pdfServiceUrl = import.meta.env.VITE_PDF_SERVICE_URL || 'http://localhost:3001';
+    const response = await fetch(`${pdfServiceUrl}/normalize-pdf`, {
       method: 'POST',
       body: formData,
       headers: {

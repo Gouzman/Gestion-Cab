@@ -87,7 +87,8 @@ async function convertViaSupabaseFunction(file) {
     formData.append('file', file);
     
     // Appeler le service de conversion LibreOffice local
-    const response = await fetch('http://localhost:3001/convert-word-to-pdf', {
+    const pdfServiceUrl = import.meta.env.VITE_PDF_SERVICE_URL || 'http://localhost:3001';
+    const response = await fetch(`${pdfServiceUrl}/convert-word-to-pdf`, {
       method: 'POST',
       body: formData,
       headers: {

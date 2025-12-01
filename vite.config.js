@@ -265,14 +265,7 @@ export default defineConfig({
 					if (id.includes('framer-motion') || id.includes('lucide-react') || id.includes('@radix-ui')) {
 						return 'vendor-ui';
 					}
-					// Charts
-					if (id.includes('recharts') || id.includes('d3-')) {
-						return 'vendor-charts';
-					}
-					// Sentry isolé
-					if (id.includes('@sentry/react')) {
-						return 'sentry';
-					}
+					// Ne pas séparer recharts - laisser dans le bundle principal pour éviter les erreurs de dépendances circulaires
 				},
 			},
 		},

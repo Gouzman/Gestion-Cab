@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
-import { Plus, Search, Briefcase, User, Copy, Check } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Search, Briefcase, User } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import TeamMemberForm from '@/components/TeamMemberForm';
 import CollaboratorListItem from '@/components/CollaboratorListItem';
@@ -13,7 +12,6 @@ import { supabase } from '@/lib/customSupabaseClient';
 
 const TeamManager = ({ currentUser }) => {
   const [members, setMembers] = useState([]);
-  const [showForm, setShowForm] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: () => {} });
@@ -26,7 +24,7 @@ const TeamManager = ({ currentUser }) => {
 
   const fetchMembers = async () => {
     const { data, error } = await supabase.from('profiles')
-      .select('id, name, email, function, role, created_at');
+      .select('id, name, email, "function", role, created_at');
     if (error) {
       console.error('Erreur chargement collaborateurs:', error);
       toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger les collaborateurs." });
@@ -37,151 +35,16 @@ const TeamManager = ({ currentUser }) => {
     }
   };
 
-  const handleAddMember = async (memberData) => {
-    try {
-      // Vérifier d'abord si l'email existe déjà
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('email', memberData.email)
-        .maybeSingle();
 
-      if (existingUser) {
-        toast({ 
-          variant: "destructive", 
-          title: "Erreur", 
-          description: "Un utilisateur avec cet email existe déjà." 
-        });
-        return;
-      }
-
-      // ============================================
-      // NOUVEAU SYSTÈME : Créer l'utilisateur complet via RPC
-      // ============================================
-      
-      // 1. Générer le mot de passe initial via RPC
-      const { data: passwordData, error: passwordError } = await supabase.rpc('generate_initial_password');
-      
-      if (passwordError || !passwordData) {
-        console.error('Erreur génération mot de passe:', passwordError);
-        toast({ 
-          variant: "destructive", 
-          title: "Erreur", 
-          description: "Impossible de générer le mot de passe initial." 
-        });
-        return;
-      }
-
-      const initialPassword = passwordData;
-
-      // 2. Créer le compte Auth + Profile en une seule opération via RPC
-      // Cette fonction utilise SECURITY DEFINER pour créer le compte sans envoyer d'email
-      const { data: createResult, error: createError } = await supabase.rpc('create_auth_user_with_profile', {
-        user_email: memberData.email,
-        user_password: initialPassword,
-        user_name: memberData.name,
-        user_role: memberData.role,
-        user_function: memberData.function
-      });
-
-      if (createError || !createResult?.success) {
-        console.error('Erreur création utilisateur:', createError || createResult?.error);
-        toast({ 
-          variant: "destructive", 
-          title: "Erreur", 
-          description: createResult?.error || "Impossible de créer le compte utilisateur." 
-        });
-        return;
-      }
-
-      // 3. Afficher le mot de passe initial à l'admin avec bouton de copie
-      fetchMembers();
-      setShowForm(false);
-      
-      // Composant de copie pour le toast
-      const CopyPasswordButton = () => {
-        const [copied, setCopied] = React.useState(false);
-        
-        const handleCopy = async () => {
-          try {
-            await navigator.clipboard.writeText(initialPassword);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          } catch (err) {
-            // Fallback pour les anciens navigateurs
-            const textArea = document.createElement('textarea');
-            textArea.value = initialPassword;
-            textArea.style.position = 'fixed';
-            textArea.style.opacity = '0';
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }
-        };
-
-        return (
-          <button
-            onClick={handleCopy}
-            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded bg-slate-600 hover:bg-slate-500 transition-colors"
-            type="button"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3 h-3" />
-                <span>Copié !</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3 h-3" />
-                <span>Copier</span>
-              </>
-            )}
-          </button>
-        );
-      };
-      
-      toast({ 
-        title: "✅ Collaborateur créé avec succès", 
-        description: (
-          <div className="space-y-2">
-            <p><strong>Nom :</strong> {memberData.name}</p>
-            <p><strong>Email :</strong> {memberData.email}</p>
-            <div className="bg-slate-700 p-2 rounded mt-2">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <strong>Mot de passe initial :</strong>
-                <CopyPasswordButton />
-              </div>
-              <code className="text-green-400 text-sm block">{initialPassword}</code>
-            </div>
-            <p className="text-xs text-slate-400 mt-2">
-              ⚠️ Transmettez ce mot de passe à l'utilisateur.<br />
-              Il devra le changer lors de sa première connexion.
-            </p>
-          </div>
-        ),
-        duration: 15000, // 15 secondes pour copier le mot de passe
-      });
-    } catch (error) {
-      console.error('Erreur inattendue:', error);
-      toast({ 
-        variant: "destructive", 
-        title: "Erreur", 
-        description: "Une erreur est survenue lors de la création du collaborateur." 
-      });
-    }
-  };
 
   const handleEditMember = async (memberData) => {
     if (!editingMember) return;
     const { data, error } = await supabase.from('profiles').update({
       name: memberData.name,
-      function: memberData.function,
+      'function': memberData.function,
       role: memberData.role,
     }).eq('id', editingMember.id)
-    .select('id, name, email, function, role, created_at');
+    .select('id, name, email, "function", role, created_at');
 
     if (error) {
       console.error('Erreur modification collaborateur:', error);
@@ -193,7 +56,6 @@ const TeamManager = ({ currentUser }) => {
     } else {
       setMembers(members.map(m => m.id === editingMember.id ? data[0] : m));
       setEditingMember(null);
-      setShowForm(false);
       toast({ title: "✅ Collaborateur modifié", description: "Les informations ont été mises à jour." });
     }
   };
@@ -282,18 +144,11 @@ const TeamManager = ({ currentUser }) => {
               💡 <strong>Info :</strong> Cette section gère le <strong>personnel interne</strong> du cabinet (avocats, assistants, etc.)
             </span>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => {
-              setEditingMember(null);
-              setShowForm(true);
-            }}
-            className="bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Nouveau Collaborateur
-          </Button>
+          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+            <span className="text-xs text-orange-300">
+              ℹ️ Pour <strong>créer un nouveau collaborateur</strong>, rendez-vous dans <strong>Paramètres → Permissions</strong>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -345,7 +200,6 @@ const TeamManager = ({ currentUser }) => {
             index={index}
             onEdit={(member) => {
               setEditingMember(member);
-              setShowForm(true);
             }}
             onDelete={(memberId) => {
               const memberToDelete = members.find(m => m.id === memberId);
@@ -374,12 +228,11 @@ const TeamManager = ({ currentUser }) => {
         </motion.div>
       )}
 
-      {showForm && (
+      {editingMember && (
         <TeamMemberForm
           member={editingMember}
-          onSubmit={editingMember ? handleEditMember : handleAddMember}
+          onSubmit={handleEditMember}
           onCancel={() => {
-            setShowForm(false);
             setEditingMember(null);
           }}
         />

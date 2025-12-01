@@ -1,9 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart3, PieChart, TrendingUp, FileText, Download, Users, CheckSquare, Briefcase, DollarSign } from 'lucide-react';
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend, Pie, Cell } from 'recharts';
 import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
+import { 
+  Bar, 
+  BarChart as RechartsBarChart, 
+  ResponsiveContainer, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  Legend, 
+  Pie, 
+  PieChart as RechartsPieChart, 
+  Cell 
+} from 'recharts';
 import { supabase } from '@/lib/customSupabaseClient';
 import Papa from 'papaparse';
 import { startOfMonth, startOfQuarter, startOfYear, isWithinInterval, getYear, startOfWeek, endOfMonth, endOfQuarter, endOfYear, endOfWeek } from 'date-fns';
@@ -310,7 +321,7 @@ const Reports = ({ currentUser }) => {
             <div className="h-96 bg-slate-800/50 p-4 rounded-lg">
               <h4 className="text-lg font-semibold text-white mb-4">Performance détaillée de l'équipe</h4>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={teamPerformanceData}>
+                <RechartsBarChart data={teamPerformanceData}>
                   <XAxis dataKey="name" stroke="#94a3b8" />
                   <YAxis stroke="#94a3b8" allowDecimals={false} />
                   <Tooltip 
@@ -328,7 +339,7 @@ const Reports = ({ currentUser }) => {
                   <Bar dataKey="Tâches assignées" fill="#3b82f6" name="Assignées" />
                   <Bar dataKey="Tâches terminées" fill="#22c55e" name="Terminées" />
                   <Bar dataKey="Tâches en retard" fill="#ef4444" name="En retard" />
-                </BarChart>
+                </RechartsBarChart>
               </ResponsiveContainer>
             </div>
           </motion.div>
@@ -411,7 +422,7 @@ const PieChartCard = ({ title, data, colors }) => (
   <div className="h-96 bg-slate-800/50 p-4 rounded-lg">
     <h4 className="text-lg font-semibold text-white text-center mb-4">{title}</h4>
     <ResponsiveContainer width="100%" height="85%">
-      <PieChart>
+      <RechartsPieChart>
         <Pie data={data} cx="50%" cy="50%" labelLine={false} outerRadius={80} fill="#8884d8" dataKey="value" nameKey="name" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
           {data.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
@@ -419,7 +430,7 @@ const PieChartCard = ({ title, data, colors }) => (
         </Pie>
         <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155' }} />
         <Legend />
-      </PieChart>
+      </RechartsPieChart>
     </ResponsiveContainer>
   </div>
 );

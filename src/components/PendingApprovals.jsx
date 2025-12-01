@@ -20,7 +20,7 @@ const PendingApprovals = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, email, function, role, created_at')
+        .select('id, name, email, "function", role, created_at')
         .eq('admin_approved', false)
         .neq('role', 'admin')
         .order('created_at', { ascending: false });

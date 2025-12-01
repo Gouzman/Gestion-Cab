@@ -1,11 +1,11 @@
-import * as Sentry from '@sentry/react';
+import * as Sentry from "@sentry/browser";
 
 /**
  * Initialise Sentry pour le monitoring des erreurs
+ * Compatible avec @sentry/browser v7 et React 18
  * Appelé au démarrage de l'application
  */
 export function initializeSentry() {
-  // Activer uniquement en production avec DSN configuré
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   const environment = import.meta.env.MODE;
 
@@ -18,23 +18,11 @@ export function initializeSentry() {
     dsn,
     environment,
     
-    // Performance monitoring
-    integrations: [
-      Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration({
-        maskAllText: true, // Masquer les données sensibles
-        blockAllMedia: true,
-      }),
-    ],
+    // Intégrations minimales - pas besoin d'intégration React
+    integrations: [],
 
-    // Taux d'échantillonnage des traces de performance (10% en prod)
-    tracesSampleRate: environment === 'production' ? 0.1 : 1.0,
-
-    // Session replay: capturer 10% des sessions normales
-    replaysSessionSampleRate: 0.1,
-    
-    // Session replay: capturer 100% des sessions avec erreurs
-    replaysOnErrorSampleRate: 1.0,
+    // Normalisation des données
+    normalizeDepth: 5,
 
     // Filtrer les erreurs connues non critiques
     beforeSend(event, hint) {
@@ -42,6 +30,11 @@ export function initializeSentry() {
 
       // Ignorer les erreurs réseau temporaires
       if (error?.message?.includes('Failed to fetch')) {
+        return null;
+      }
+
+      // Ignorer les erreurs réseau
+      if (error?.message?.includes('NetworkError')) {
         return null;
       }
 

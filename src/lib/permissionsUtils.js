@@ -78,7 +78,7 @@ export const usePermissionsManager = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, name, role, function, created_at')
+        .select('id, email, name, role, "function", created_at')
         .order('name');
 
       if (error) {
@@ -146,7 +146,7 @@ export const usePermissionsManager = () => {
       if (userRole || userFunction) {
         const updateData = {};
         if (userRole) updateData.role = userRole;
-        if (userFunction) updateData.function = userFunction;
+        if (userFunction) updateData['function'] = userFunction;
 
         const { error: userError } = await supabase
           .from('profiles')
@@ -186,37 +186,61 @@ export const usePermissionsManager = () => {
   // Créer un nouvel utilisateur avec permissions par défaut
   const createUser = async (userData) => {
     try {
-      const { data: newUser, error: userError } = await supabase
-        .from('profiles')
-        .insert([{
-          email: userData.email,
-          name: userData.name,
-          role: userData.role || 'user',
-          function: userData.function || null
-        }])
-        .select()
-        .single();
+      // 1. Générer un UUID et le mot de passe initial
+      const userId = crypto.randomUUID();
+      const initialPassword = `${userData.name.split(' ')[0]}2024!`;
+      
+      // 2. Créer directement via RPC (qui gère le hachage et l'insertion)
+      // Cette approche évite les limites de rate-limit de Supabase Auth
+      const { data: rpcResult, error: rpcError } = await supabase.rpc(
+        'create_collaborator_with_initial_password',
+        {
+          user_id: userId,
+          user_email: userData.email,
+          user_name: userData.name,
+          user_role: userData.role || 'user',
+          user_function: userData.function || null,
+          initial_password: initialPassword
+        }
+      );
 
-      if (userError) {
-        throw userError;
+      if (rpcError) {
+        console.error('Erreur RPC:', rpcError);
+        throw new Error(`Erreur RPC: ${rpcError.message || JSON.stringify(rpcError)}`);
       }
 
-      // Appliquer les permissions par défaut
+      if (!rpcResult?.success) {
+        throw new Error(rpcResult?.error || 'Échec de la création via RPC');
+      }
+
+      // 3. Récupérer l'utilisateur créé
+      const { data: newUser, error: fetchError } = await supabase
+        .from('profiles')
+        .select('id, email, name, role, "function", created_at')
+        .eq('id', userId)
+        .single();
+
+      if (fetchError) {
+        console.error('Erreur fetch:', fetchError);
+        throw new Error(`Impossible de récupérer l'utilisateur: ${fetchError.message}`);
+      }
+
+      // 4. Appliquer les permissions par défaut
       const defaultPermissions = applyDefaultPermissions(userData.role || 'user');
-      await saveUserPermissions(newUser.id, defaultPermissions);
+      const permResult = await saveUserPermissions(userId, defaultPermissions);
+      
+      if (!permResult.success) {
+        console.warn('Permissions non appliquées, mais utilisateur créé');
+      }
 
-      toast({
-        title: "✅ Utilisateur créé",
-        description: `L'utilisateur ${userData.name} a été créé avec succès.`
-      });
-
-      return { success: true, user: newUser };
+      // Ne pas afficher de toast ici, UserCreator.jsx s'occupe de l'affichage
+      return { success: true, user: newUser, initialPassword };
     } catch (error) {
       console.error('Erreur lors de la création de l\'utilisateur:', error);
       toast({
         variant: "destructive",
         title: "Erreur de création",
-        description: `Impossible de créer l'utilisateur: ${error.message}`
+        description: error.message || 'Impossible de créer l\'utilisateur'
       });
       return { success: false, error };
     }
