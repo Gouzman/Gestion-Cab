@@ -24,18 +24,21 @@ CREATE INDEX IF NOT EXISTS idx_internal_sessions_expires ON public.internal_sess
 ALTER TABLE public.internal_sessions ENABLE ROW LEVEL SECURITY;
 
 -- Politique : Un utilisateur ne peut voir que ses propres sessions
+DROP POLICY IF EXISTS "Users can view own sessions" ON public.internal_sessions;
 CREATE POLICY "Users can view own sessions"
   ON public.internal_sessions
   FOR SELECT
   USING (user_id = auth.uid());
 
 -- Politique : Permettre la création de sessions (pour le login)
+DROP POLICY IF EXISTS "Allow session creation" ON public.internal_sessions;
 CREATE POLICY "Allow session creation"
   ON public.internal_sessions
   FOR INSERT
   WITH CHECK (true);
 
 -- Politique : Permettre la suppression de sessions (pour le logout)
+DROP POLICY IF EXISTS "Users can delete own sessions" ON public.internal_sessions;
 CREATE POLICY "Users can delete own sessions"
   ON public.internal_sessions
   FOR DELETE
@@ -93,14 +96,9 @@ BEGIN
     );
   END IF;
 
-  -- 2. Vérifier l'approbation admin (sauf pour les admins)
-  IF profile_record.role != 'admin' AND NOT profile_record.admin_approved THEN
-    RETURN json_build_object(
-      'success', false,
-      'error', 'pending_approval',
-      'message', 'Votre compte est en attente de validation'
-    );
-  END IF;
+  -- 2. [DÉSACTIVÉ] Vérification d'approbation admin supprimée
+  -- Les comptes sont automatiquement actifs dès leur création
+  -- L'écran FirstLoginScreen reste affiché pour définir le mot de passe personnel
 
   -- 3. Vérifier le mot de passe
   -- Si l'utilisateur n'a pas de mot de passe personnalisé, vérifier contre initial_password

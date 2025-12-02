@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   FileText, 
   Calendar, 
   User,
-  Clock
+  Clock,
+  Scale
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getClientDisplayName } from '@/lib/clientUtils';
+import InstanceManager from '@/components/InstanceManager';
 
 const CaseListItem = ({ case: caseData, clients = [], index, onEdit, onDelete }) => {
+  const [showInstanceManager, setShowInstanceManager] = useState(false);
+  
   // Trouver le client associé
   const client = clients.find(c => c.id === caseData.client_id);
   const clientName = client ? getClientDisplayName(client) : 'Non assigné';
@@ -127,13 +131,31 @@ const CaseListItem = ({ case: caseData, clients = [], index, onEdit, onDelete })
             </div>
           )}
         </div>
-        <Button
-          onClick={() => onEdit(caseData)}
-          className="bg-slate-700 border border-slate-600 text-slate-200 hover:bg-slate-600 px-4 py-2 rounded-md text-sm font-medium"
-        >
-          Voir détails
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setShowInstanceManager(true)}
+            variant="outline"
+            className="border-slate-600 text-slate-300 hover:bg-slate-700 px-4 py-2 rounded-md text-sm font-medium"
+          >
+            <Scale className="w-4 h-4 mr-2" />
+            Instances
+          </Button>
+          <Button
+            onClick={() => onEdit(caseData)}
+            className="bg-slate-700 border border-slate-600 text-slate-200 hover:bg-slate-600 px-4 py-2 rounded-md text-sm font-medium"
+          >
+            Voir détails
+          </Button>
+        </div>
       </div>
+
+      {/* Modal InstanceManager */}
+      {showInstanceManager && (
+        <InstanceManager
+          caseId={caseData.id}
+          onClose={() => setShowInstanceManager(false)}
+        />
+      )}
     </motion.div>
   );
 };

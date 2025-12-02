@@ -133,7 +133,6 @@ export const AuthProvider = ({ children }) => {
         
         const errorMessages = {
           'invalid_credentials': "Identifiant ou mot de passe incorrect",
-          'pending_approval': "Votre compte est en attente de validation",
           'technical_error': data?.message || "Erreur technique"
         };
 

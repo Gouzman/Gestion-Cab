@@ -18,6 +18,9 @@ const PendingApprovals = () => {
 
   const fetchPendingUsers = async () => {
     try {
+      // Avec le nouveau système, tous les comptes sont automatiquement approuvés
+      // Ce composant ne devrait plus afficher d'utilisateurs
+      // On garde le code pour compatibilité si besoin de rollback
       const { data, error } = await supabase
         .from('profiles')
         .select('id, name, email, "function", role, created_at')
@@ -29,11 +32,12 @@ const PendingApprovals = () => {
       setPendingUsers(data || []);
     } catch (error) {
       console.error('Erreur chargement utilisateurs en attente:', error);
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible de charger les utilisateurs en attente."
-      });
+      // Ne pas afficher d'erreur si aucun utilisateur en attente
+      // toast({
+      //   variant: "destructive",
+      //   title: "Erreur",
+      //   description: "Impossible de charger les utilisateurs en attente."
+      // });
     } finally {
       setLoading(false);
     }

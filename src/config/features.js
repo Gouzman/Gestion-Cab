@@ -11,13 +11,14 @@
  */
 
 // ⚠️ IMPORTANT: Mettre à true APRÈS avoir exécuté la migration SQL
-export const MIGRATION_EXECUTED = false;
+export const MIGRATION_EXECUTED = true;
 
 /**
  * Colonnes de la table 'cases' disponibles selon l'état de la migration
  */
 export const getCaseColumns = () => {
   const baseColumns = [
+    'id',
     'title',
     'case_type',
     'client_id',
@@ -30,18 +31,30 @@ export const getCaseColumns = () => {
     'honoraire',
     'notes',
     'attachments',
-    'visible_to'
+    'visible_to',
+    'created_at',
+    'updated_at',
+    'created_by'
   ];
 
   const newColumns = [
     'code_dossier',          // Nouveau: référence du dossier
+    'id_dossier',            // Nouveau: identifiant unique
     'objet_du_dossier',      // Nouveau: objet juridique
     'type_de_diligence',     // Nouveau: type de procédure
     'qualite_du_client'      // Nouveau: personne physique/morale
   ];
 
+  const juridicalColumns = [
+    'juridiction',           // Nouveau: juridiction compétente
+    'numero_rg',             // Nouveau: numéro RG
+    'type_procedure',        // Nouveau: référé/fond/appel/etc
+    'avocat_adverse',        // Nouveau: avocat partie adverse
+    'numero_cabinet_instruction' // Nouveau: numéro cabinet instruction
+  ];
+
   return MIGRATION_EXECUTED 
-    ? [...baseColumns, ...newColumns] 
+    ? [...baseColumns, ...newColumns, ...juridicalColumns] 
     : baseColumns;
 };
 

@@ -81,7 +81,16 @@ const ClientManager = () => {
         city: clientData.city,
         postal_code: clientData.postalCode,
         country: clientData.country,
-        notes: clientData.notes
+        notes: clientData.notes,
+        // Champs convention
+        is_conventionne: clientData.is_conventionne || false,
+        numero_convention: clientData.numero_convention || null,
+        type_convention: clientData.type_convention || null,
+        organisme_convention: clientData.organisme_convention || null,
+        date_debut_convention: clientData.date_debut_convention || null,
+        date_fin_convention: clientData.date_fin_convention || null,
+        taux_prise_en_charge: clientData.taux_prise_en_charge ? Number.parseFloat(clientData.taux_prise_en_charge) : null,
+        notes_convention: clientData.notes_convention || null
       };
 
       const { data, error } = await supabase.from('clients').insert([dbClientData]).select();
@@ -147,7 +156,16 @@ const ClientManager = () => {
         city: clientData.city,
         postal_code: clientData.postalCode,
         country: clientData.country,
-        notes: clientData.notes
+        notes: clientData.notes,
+        // Champs convention
+        is_conventionne: clientData.is_conventionne || false,
+        numero_convention: clientData.numero_convention || null,
+        type_convention: clientData.type_convention || null,
+        organisme_convention: clientData.organisme_convention || null,
+        date_debut_convention: clientData.date_debut_convention || null,
+        date_fin_convention: clientData.date_fin_convention || null,
+        taux_prise_en_charge: clientData.taux_prise_en_charge ? Number.parseFloat(clientData.taux_prise_en_charge) : null,
+        notes_convention: clientData.notes_convention || null
       };
 
       const { data, error } = await supabase.from('clients').update(dbClientData).eq('id', editingClient.id).select();

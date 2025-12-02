@@ -13,31 +13,56 @@ const TransferToTaskModal = ({ document, onCancel, onTransferred }) => {
 
   useEffect(() => {
     const fetchTasks = async () => {
-      if (!document.caseId) {
+      // Charger les tâches en fonction du contexte
+      let query = supabase
+        .from('tasks')
+        .select('id, title, status, case_id')
+        .order('created_at', { ascending: false });
+
+      // Si le document a un case_id, filtrer sur ce dossier
+      // Sinon, charger toutes les tâches disponibles
+      if (document.caseId) {
+        query = query.eq('case_id', document.caseId);
+      }
+      
+      const { data: tasksData, error: tasksError } = await query;
+      
+      if (tasksError) {
+        console.error('Erreur chargement tâches:', tasksError);
         toast({
           variant: 'destructive',
           title: 'Erreur',
-          description: 'Ce document n\'est pas lié à un dossier.'
+          description: 'Impossible de charger les tâches.'
         });
         return;
       }
 
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('id, title, status')
-        .eq('case_id', document.caseId)
-        .order('created_at', { ascending: false });
+      // Récupérer les titres des dossiers séparément
+      const caseIds = [...new Set(tasksData.filter(t => t.case_id).map(t => t.case_id))];
+      let casesMap = {};
       
-      if (error) {
-        console.error('Erreur chargement tâches:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Erreur',
-          description: 'Impossible de charger les tâches du dossier.'
-        });
-      } else {
-        setTasks(data || []);
+      if (caseIds.length > 0) {
+        const { data: casesData } = await supabase
+          .from('cases')
+          .select('id, title')
+          .in('id', caseIds);
+        
+        if (casesData) {
+          casesMap = casesData.reduce((acc, c) => {
+            acc[c.id] = c.title;
+            return acc;
+          }, {});
+        }
       }
+
+      // Enrichir les tâches avec les titres de dossiers
+      const enrichedTasks = tasksData.map(task => ({
+        ...task,
+        caseTitle: task.case_id ? casesMap[task.case_id] : null
+      }));
+
+      console.log('📋 Tâches chargées pour transfert:', enrichedTasks);
+      setTasks(enrichedTasks || []);
     };
     fetchTasks();
   }, [document.caseId]);
@@ -55,6 +80,10 @@ const TransferToTaskModal = ({ document, onCancel, onTransferred }) => {
     setLoading(true);
 
     try {
+      // Récupérer le case_id de la tâche sélectionnée
+      const selectedTask = tasks.find(t => t.id === selectedTaskId);
+      const targetCaseId = selectedTask?.case_id || document.caseId;
+
       // Vérifier si le document n'est pas déjà lié à cette tâche
       const { data: existingLinks, error: checkError } = await supabase
         .from('tasks_files')
@@ -79,7 +108,7 @@ const TransferToTaskModal = ({ document, onCancel, onTransferred }) => {
       // Créer le lien entre le document et la tâche
       const payload = {
         task_id: selectedTaskId,
-        case_id: document.caseId,
+        case_id: targetCaseId, // Utiliser le case_id de la tâche
         file_name: document.name,
         file_url: document.url,
         file_size: document.fileSize || null,
@@ -186,15 +215,20 @@ const TransferToTaskModal = ({ document, onCancel, onTransferred }) => {
               disabled={loading}
             >
               <option value="">Sélectionner une tâche...</option>
-              {tasks.map(task => (
-                <option key={task.id} value={task.id}>
-                  {task.title} ({task.status})
-                </option>
-              ))}
+              {tasks.map(task => {
+                const caseTitle = task.caseTitle || 'Sans dossier';
+                return (
+                  <option key={task.id} value={task.id}>
+                    {task.title} - {caseTitle} ({task.status})
+                  </option>
+                );
+              })}
             </select>
             {tasks.length === 0 && (
               <p className="text-sm text-slate-500 mt-2">
-                Aucune tâche disponible dans ce dossier.
+                {document.caseId 
+                  ? 'Aucune tâche disponible dans ce dossier.'
+                  : 'Aucune tâche disponible. Créez d\'abord des tâches.'}
               </p>
             )}
           </div>

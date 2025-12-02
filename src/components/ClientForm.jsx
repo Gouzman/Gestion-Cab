@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, User, Building, Phone, Mail, MapPin } from 'lucide-react';
+import { X, User, Building, Phone, Mail, MapPin, FileCheck, Calendar, Percent } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const ClientForm = ({ client, onSubmit, onCancel }) => {
@@ -15,7 +15,16 @@ const ClientForm = ({ client, onSubmit, onCancel }) => {
     city: '',
     postalCode: '',
     country: 'France',
-    notes: ''
+    notes: '',
+    // Champs convention
+    is_conventionne: false,
+    numero_convention: '',
+    type_convention: '',
+    organisme_convention: '',
+    date_debut_convention: '',
+    date_fin_convention: '',
+    taux_prise_en_charge: '',
+    notes_convention: ''
   });
 
   useEffect(() => {
@@ -31,7 +40,16 @@ const ClientForm = ({ client, onSubmit, onCancel }) => {
         city: client.city || '',
         postalCode: client.postalCode || client.postal_code || '',
         country: client.country || 'France',
-        notes: client.notes || ''
+        notes: client.notes || '',
+        // Champs convention
+        is_conventionne: client.is_conventionne || false,
+        numero_convention: client.numero_convention || '',
+        type_convention: client.type_convention || '',
+        organisme_convention: client.organisme_convention || '',
+        date_debut_convention: client.date_debut_convention || '',
+        date_fin_convention: client.date_fin_convention || '',
+        taux_prise_en_charge: client.taux_prise_en_charge || '',
+        notes_convention: client.notes_convention || ''
       });
     }
   }, [client]);
@@ -252,6 +270,145 @@ const ClientForm = ({ client, onSubmit, onCancel }) => {
                 className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 placeholder="France"
               />
+            </div>
+          </div>
+
+          {/* Section Convention */}
+          <div className="border-t border-slate-700 pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <FileCheck className="w-5 h-5 text-green-400" />
+              <h3 className="text-lg font-semibold text-white">Client conventionné</h3>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  name="is_conventionne"
+                  checked={formData.is_conventionne}
+                  onChange={(e) => setFormData(prev => ({ ...prev, is_conventionne: e.target.checked }))}
+                  className="w-4 h-4 text-green-500 bg-slate-700 border-slate-600 rounded focus:ring-green-500"
+                />
+                <label className="text-sm text-slate-300">
+                  Ce client bénéficie d'une convention (aide juridictionnelle, assurance, etc.)
+                </label>
+              </div>
+
+              {formData.is_conventionne && (
+                <div className="space-y-4 pl-7 border-l-2 border-green-500/30">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        N° de convention *
+                      </label>
+                      <input
+                        type="text"
+                        name="numero_convention"
+                        value={formData.numero_convention}
+                        onChange={handleChange}
+                        required={formData.is_conventionne}
+                        className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        placeholder="Ex: CONV-2024-001"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        Type de convention *
+                      </label>
+                      <select
+                        name="type_convention"
+                        value={formData.type_convention}
+                        onChange={handleChange}
+                        required={formData.is_conventionne}
+                        className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                      >
+                        <option value="">Sélectionner...</option>
+                        <option value="aide_juridictionnelle">Aide juridictionnelle</option>
+                        <option value="assurance_protection_juridique">Assurance protection juridique</option>
+                        <option value="convention_entreprise">Convention entreprise</option>
+                        <option value="autre">Autre</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Organisme
+                    </label>
+                    <input
+                      type="text"
+                      name="organisme_convention"
+                      value={formData.organisme_convention}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="Ex: Allianz, CPAM, Ministère de la Justice..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        <Calendar className="w-4 h-4 inline mr-1" />
+                        Date début
+                      </label>
+                      <input
+                        type="date"
+                        name="date_debut_convention"
+                        value={formData.date_debut_convention}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        <Calendar className="w-4 h-4 inline mr-1" />
+                        Date fin
+                      </label>
+                      <input
+                        type="date"
+                        name="date_fin_convention"
+                        value={formData.date_fin_convention}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        <Percent className="w-4 h-4 inline mr-1" />
+                        Taux prise en charge (%)
+                      </label>
+                      <input
+                        type="number"
+                        name="taux_prise_en_charge"
+                        value={formData.taux_prise_en_charge}
+                        onChange={handleChange}
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        placeholder="Ex: 75.50"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Notes spécifiques à la convention
+                    </label>
+                    <textarea
+                      name="notes_convention"
+                      value={formData.notes_convention}
+                      onChange={handleChange}
+                      rows={3}
+                      className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="Conditions particulières, restrictions, etc..."
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

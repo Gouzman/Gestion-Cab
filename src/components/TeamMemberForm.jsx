@@ -91,19 +91,19 @@ const TeamMemberForm = ({ member, onSubmit, onCancel }) => {
               className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 cursor-pointer"
             >
               <option value="">Sélectionner un titre</option>
-              <option value="Associé principal">Associé principal</option>
-              <option value="Associé">Associé</option>
-              <option value="Avocat senior">Avocat senior</option>
-              <option value="Avocat">Avocat</option>
-              <option value="Avocat stagiaire">Avocat stagiaire</option>
+              <option value="Avocat associé">Avocat associé</option>
+              <option value="Avocate associée">Avocate associée</option>
+              <option value="Avocat collaborateur">Avocat collaborateur</option>
+              <option value="Juriste manager">Juriste manager</option>
+              <option value="Juriste sénior">Juriste sénior</option>
               <option value="Juriste senior">Juriste senior</option>
-              <option value="Juriste">Juriste</option>
-              <option value="Secrétaire juridique">Secrétaire juridique</option>
-              <option value="Secrétaire">Secrétaire</option>
-              <option value="Assistant(e) juridique">Assistant(e) juridique</option>
-              <option value="Assistant(e)">Assistant(e)</option>
-              <option value="Comptable">Comptable</option>
-              <option value="Responsable administratif">Responsable administratif</option>
+              <option value="Juriste sénior">Juriste sénior</option>
+              <option value="Juriste junior">Juriste junior</option>
+              <option value="Assistant juridique">Assistant juridique</option>
+              <option value="Gestionnaire comptable">Gestionnaire comptable</option>
+              <option value="Secrétaire de direction">Secrétaire de direction</option>
+              <option value="Secrétaire de Direction">Secrétaire de Direction</option>
+              <option value="Stagiaire">Stagiaire</option>
             </select>
             <p className="text-xs text-slate-400 mt-1">Position hiérarchique et rôle au cabinet</p>
           </div>

@@ -6,7 +6,6 @@ import { toast } from '@/components/ui/use-toast';
 import TeamMemberForm from '@/components/TeamMemberForm';
 import CollaboratorListItem from '@/components/CollaboratorListItem';
 import ConfirmationModal from '@/components/ConfirmationModal';
-import PendingApprovals from '@/components/PendingApprovals';
 import DeleteUserModal from '@/components/DeleteUserModal';
 import { supabase } from '@/lib/customSupabaseClient';
 
@@ -150,11 +149,6 @@ const TeamManager = ({ currentUser }) => {
             </span>
           </div>
         </div>
-      </div>
-
-      {/* Section Validations en attente */}
-      <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 print:hidden">
-        <PendingApprovals />
       </div>
 
       <div className="print:hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

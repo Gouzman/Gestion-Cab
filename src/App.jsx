@@ -23,6 +23,7 @@ const TeamManager = lazy(() => import('@/components/TeamManager'));
 const DocumentManager = lazy(() => import('@/components/DocumentManager'));
 const Settings = lazy(() => import('@/components/Settings'));
 const BillingManager = lazy(() => import('@/components/BillingManager'));
+const ConventionDashboard = lazy(() => import('@/components/ConventionDashboard'));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -78,6 +79,7 @@ function App() {
         case 'reports': return <Reports currentUser={user} />;
         case 'documents': return <DocumentManager currentUser={user} />;
         case 'billing': return <BillingManager currentUser={user} />;
+        case 'conventions': return <ConventionDashboard currentUser={user} />;
         case 'settings': return <Settings currentUser={user} />;
         default: return <Dashboard currentUser={user} setActiveView={setActiveView} />;
       }

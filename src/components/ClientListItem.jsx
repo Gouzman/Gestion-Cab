@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, MapPin, Edit, Trash2, Building } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Edit, Trash2, Building, FileCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getClientDisplayName } from '../lib/clientUtils';
 
@@ -41,13 +41,19 @@ const ClientListItem = ({ client, index, onEdit, onDelete }) => {
               {getClientDisplayName(client)}
             </h4>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-700/50 text-slate-300 border border-slate-600/30">
               {getTypeLabel(client.type)}
             </div>
             {client.clientCode && (
               <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-600/20 text-indigo-300 border border-indigo-500/30">
                 N° {client.clientCode}
+              </div>
+            )}
+            {client.is_conventionne && (
+              <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-600/20 text-green-300 border border-green-500/30">
+                <FileCheck className="w-3 h-3" />
+                Conventionné
               </div>
             )}
           </div>

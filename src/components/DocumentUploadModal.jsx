@@ -145,7 +145,7 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
       const fileBuffer = await formData.file.arrayBuffer();
       
       const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('task-files')
+        .from('attachments')
         .upload(filePath, fileBuffer, {
           cacheControl: '3600',
           upsert: false,
@@ -158,7 +158,7 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
         // Message d'erreur plus détaillé selon le type d'erreur
         let errorMessage = 'Impossible de téléverser le fichier vers le stockage.';
         if (uploadError.message?.includes('Bucket not found')) {
-          errorMessage = 'Le bucket de stockage "task-files" n\'existe pas. Veuillez le créer dans Supabase Storage.';
+          errorMessage = 'Le bucket de stockage "attachments" n\'existe pas. Veuillez le créer dans Supabase Storage.';
         } else if (uploadError.message?.includes('new row violates')) {
           errorMessage = 'Erreur de permissions. Vérifiez les politiques RLS du bucket.';
         }
@@ -173,7 +173,7 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
 
       // 2. Obtenir l'URL publique du fichier
       const { data: { publicUrl } } = supabase.storage
-        .from('task-files')
+        .from('attachments')
         .getPublicUrl(filePath);
 
       // 3. Enregistrer les métadonnées dans tasks_files
@@ -199,7 +199,7 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
         console.error('Erreur sauvegarde DB:', dbError);
         
         // Nettoyer le fichier uploadé si la sauvegarde échoue
-        await supabase.storage.from('task-files').remove([filePath]);
+        await supabase.storage.from('attachments').remove([filePath]);
         
         toast({
           variant: 'destructive',

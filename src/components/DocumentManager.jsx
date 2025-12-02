@@ -405,12 +405,15 @@ import React, { useState, useEffect, useMemo } from 'react';
               <div className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                   <FolderOpen className="w-5 h-5" />
-                  Catégories
+                  Type de Document
                 </h3>
                 <div className="space-y-2">
                   {categories.map(cat => {
                     const count = categoryCounts[cat.id] || 0;
                     const isActive = selectedCategory === cat.id;
+                    
+                    // Ne pas afficher les catégories vides (sauf "Tous les documents")
+                    if (cat.id !== 'all' && count === 0) return null;
                     
                     return (
                       <button
@@ -541,7 +544,7 @@ import React, { useState, useEffect, useMemo } from 'react';
                                 </div>
                               )}
                               
-                              {/* Badges : Catégorie et Statut */}
+                              {/* Badges : Type de Document et Statut */}
                               <div className="flex flex-wrap items-center gap-2 mt-2">
                                 {doc.category && (
                                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 text-blue-400 text-xs rounded-full">

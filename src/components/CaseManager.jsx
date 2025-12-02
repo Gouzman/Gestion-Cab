@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
-import { Plus, Search, FileText, Scale, Clock, CheckCircle, Archive } from 'lucide-react';
+import { Plus, Search, FileText, Scale, CheckCircle, Archive, FolderOpen, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import CaseForm from '@/components/CaseForm';
 import CaseListItem from '@/components/CaseListItem';
+import GroupeDossiersManager from '@/components/GroupeDossiersManager';
 
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -19,6 +20,8 @@ const CaseManager = ({ currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
+  const [showGrouping, setShowGrouping] = useState(false);
+  const [showGroupesManager, setShowGroupesManager] = useState(false);
 
   const isGerantOrAssocie = currentUser && (currentUser.function === 'Gerant' || currentUser.function === 'Associe Emerite');
   const isAdmin = isGerantOrAssocie || (currentUser.role && currentUser.role.toLowerCase() === 'admin');
@@ -166,16 +169,26 @@ const CaseManager = ({ currentUser }) => {
           <h1 className="text-3xl font-bold text-white mb-2">Gestion des Dossiers</h1>
           <p className="text-slate-400">Suivez et gérez vos affaires juridiques</p>
         </div>
-        <Button
-          onClick={() => {
-            setEditingCase(null);
-            setShowForm(true);
-          }}
-          className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nouveau Dossier
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            onClick={() => setShowGroupesManager(true)}
+            variant="outline"
+            className="border-amber-600/50 text-amber-300 hover:bg-amber-500/20"
+          >
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Chemises de dossiers
+          </Button>
+          <Button
+            onClick={() => {
+              setEditingCase(null);
+              setShowForm(true);
+            }}
+            className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nouveau Dossier
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -236,6 +249,16 @@ const CaseManager = ({ currentUser }) => {
           </div>
         </div>
       </div>
+
+      {/* Gestionnaire de Groupes de Dossiers */}
+      {showGroupesManager && (
+        <GroupeDossiersManager
+          onClose={() => {
+            setShowGroupesManager(false);
+            fetchCases(); // Rafraîchir la liste après modifications
+          }}
+        />
+      )}
 
       {/* Case List */}
       <div className="space-y-4">

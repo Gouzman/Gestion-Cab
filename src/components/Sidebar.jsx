@@ -12,7 +12,8 @@ import {
   Briefcase,
   LogOut,
   FileArchive,
-  Receipt
+  Receipt,
+  FileCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCompanyInfo } from '@/lib/appSettings';
@@ -37,6 +38,7 @@ const Sidebar = ({ activeView, setActiveView, currentUser, onLogout }) => {
     { id: 'calendar', label: 'Agenda', icon: Calendar },
     { id: 'documents', label: 'Documents', icon: FileArchive },
     { id: 'billing', label: 'Facturation', icon: Receipt },
+    { id: 'conventions', label: 'Conventions', icon: FileCheck },
     { id: 'team', label: 'Collaborateurs', icon: Briefcase },
     { id: 'reports', label: 'Statistiques', icon: BarChart3 },
   ].filter(item => hasPermission(item.id));

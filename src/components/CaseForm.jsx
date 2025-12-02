@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, FileText, User, Calendar, Paperclip, Eye, Users, Building } from 'lucide-react';
+import { X, FileText, User, Calendar, Paperclip, Eye, Users, Building, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -34,7 +34,12 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
     honoraire: '',
     notes: '',
     attachments: [],
-    visible_to: []
+    visible_to: [],
+    juridiction: '',
+    numero_rg: '',
+    type_procedure: '',
+    avocat_adverse: '',
+    numero_cabinet_instruction: ''
   });
   
   const [teamMembers, setTeamMembers] = useState([]);
@@ -97,7 +102,12 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
         honoraire: caseData.honoraire ? formatCurrency(caseData.honoraire) : '',
         notes: caseData.notes || '',
         attachments: caseData.attachments || [],
-        visible_to: caseData.visible_to || []
+        visible_to: caseData.visible_to || [],
+        juridiction: caseData.juridiction || '',
+        numero_rg: caseData.numero_rg || '',
+        type_procedure: caseData.type_procedure || '',
+        avocat_adverse: caseData.avocat_adverse || '',
+        numero_cabinet_instruction: caseData.numero_cabinet_instruction || ''
       });
     }
   }, [caseData]);
@@ -191,22 +201,23 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
             </div>
           )}
 
-          {/* 2. Réf dossier (code_dossier - saisi par l'utilisateur) */}
+          {/* 2. Réf dossier (code_dossier - AUTO-GÉNÉRÉ format YY.NN) */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
               <FileText className="w-4 h-4 inline mr-2" />
-              Réf dossier *
+              Réf dossier (optionnel)
             </label>
             <input
               type="text"
               name="code_dossier"
               value={formData.code_dossier}
               onChange={handleChange}
-              required
               className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="Ex: REF-2025-001"
+              placeholder="Laissez vide → génération auto : 25.01, 25.02..."
             />
-            <p className="text-xs text-slate-500 mt-1">Référence du dossier (saisie manuelle)</p>
+            <p className="text-xs text-slate-500 mt-1">
+              <span className="text-green-400">✨ Automatique :</span> Format YY.NN (25.01 = 2025, dossier #1) • Saisie manuelle acceptée
+            </p>
           </div>
 
           {/* 3. Type de dossier */}
@@ -384,7 +395,7 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
             </select>
           </div>
 
-          {/* Partie adverse */}
+          {/* 9. Partie adverse */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
               <Users className="w-4 h-4 inline mr-2" />
@@ -400,7 +411,94 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
             />
           </div>
 
-          {/* Prochaine audience */}
+          {/* 9b. Avocat adverse */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              <Users className="w-4 h-4 inline mr-2" />
+              Avocat adverse
+            </label>
+            <input
+              type="text"
+              name="avocat_adverse"
+              value={formData.avocat_adverse}
+              onChange={handleChange}
+              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Nom et cabinet de l'avocat adverse"
+            />
+          </div>
+
+          {/* 9c. Juridiction compétente */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              <Scale className="w-4 h-4 inline mr-2" />
+              Juridiction compétente
+            </label>
+            <input
+              type="text"
+              name="juridiction"
+              value={formData.juridiction}
+              onChange={handleChange}
+              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Ex: Tribunal de Grande Instance de Paris"
+            />
+          </div>
+
+          {/* 9d. Numéro RG */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              <FileText className="w-4 h-4 inline mr-2" />
+              Numéro RG (Rôle Général)
+            </label>
+            <input
+              type="text"
+              name="numero_rg"
+              value={formData.numero_rg}
+              onChange={handleChange}
+              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Numéro attribué par le tribunal"
+            />
+          </div>
+
+          {/* 9e. Type de procédure */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              <Scale className="w-4 h-4 inline mr-2" />
+              Type de procédure
+            </label>
+            <select
+              name="type_procedure"
+              value={formData.type_procedure}
+              onChange={handleChange}
+              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">-- Sélectionner --</option>
+              <option value="Référé">Référé</option>
+              <option value="Fond">Fond</option>
+              <option value="Appel">Appel</option>
+              <option value="Cassation">Cassation</option>
+              <option value="Opposition">Opposition</option>
+              <option value="Requête">Requête</option>
+              <option value="Ordonnance sur requête">Ordonnance sur requête</option>
+            </select>
+          </div>
+
+          {/* 9f. Numéro cabinet d'instruction */}
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              <FileText className="w-4 h-4 inline mr-2" />
+              N° Cabinet d'instruction
+            </label>
+            <input
+              type="text"
+              name="numero_cabinet_instruction"
+              value={formData.numero_cabinet_instruction}
+              onChange={handleChange}
+              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Si applicable"
+            />
+          </div>
+
+          {/* 10. Objet du dossier */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">
               <Calendar className="w-4 h-4 inline mr-2" />
