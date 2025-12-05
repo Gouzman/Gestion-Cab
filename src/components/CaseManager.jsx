@@ -20,7 +20,6 @@ const CaseManager = ({ currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', message: '', onConfirm: null });
-  const [showGrouping, setShowGrouping] = useState(false);
   const [showGroupesManager, setShowGroupesManager] = useState(false);
 
   const isGerantOrAssocie = currentUser && (currentUser.function === 'Gerant' || currentUser.function === 'Associe Emerite');
@@ -44,16 +43,14 @@ const CaseManager = ({ currentUser }) => {
     const { data, error } = await supabase.from('cases').select('*').order('created_at', { ascending: false });
     if (error) {
       toast({ variant: "destructive", title: "Erreur", description: "Impossible de charger les dossiers." });
+    } else if (isAdmin) {
+      setCases(data);
     } else {
-      if (isAdmin) {
-        setCases(data);
-      } else {
-        const visibleCases = data.filter(c => 
-          (c.created_by && c.created_by === currentUser.id) || 
-          (c.visible_to && c.visible_to.includes(currentUser.id))
-        );
-        setCases(visibleCases);
-      }
+      const visibleCases = data.filter(c => 
+        (c.created_by && c.created_by === currentUser.id) || 
+        (c.visible_to?.includes(currentUser.id))
+      );
+      setCases(visibleCases);
     }
   };
 

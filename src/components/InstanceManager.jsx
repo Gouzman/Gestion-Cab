@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -471,6 +472,11 @@ const InstanceManager = ({ caseId, onClose }) => {
       </motion.div>
     </motion.div>
   );
+};
+
+InstanceManager.propTypes = {
+  caseId: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired
 };
 
 export default InstanceManager;

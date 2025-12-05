@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
 import { X, FileText, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -307,6 +308,21 @@ const TransferToTaskModal = ({ document, onCancel, onTransferred }) => {
       </motion.div>
     </motion.div>
   );
+};
+
+TransferToTaskModal.propTypes = {
+  document: PropTypes.shape({
+    caseId: PropTypes.string,
+    url: PropTypes.string,
+    name: PropTypes.string,
+    fileSize: PropTypes.number,
+    fileType: PropTypes.string,
+    category: PropTypes.string,
+    createdBy: PropTypes.string,
+    caseTitle: PropTypes.string
+  }).isRequired,
+  onCancel: PropTypes.func.isRequired,
+  onTransferred: PropTypes.func.isRequired
 };
 
 export default TransferToTaskModal;

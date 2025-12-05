@@ -1,7 +1,8 @@
 🚀 Service de conversion et normalisation démarré sur le port 3001
 📍 Endpoints:
-   - Word → PDF: http://localhost:3001/convert-word-to-pdf
-   - Normalisation PDF: http://localhost:3001/normalize-pdf
-🏥 Health check: http://localhost:3001/health
+   - Word → PDF: http://localhost:3001/convert-word-to-pdf (rate limited: 50/15min)
+   - Normalisation PDF: http://localhost:3001/normalize-pdf (rate limited: 50/15min)
+🏥 Health check: http://localhost:3001/health (rate limited: 30/min)
+🔒 Sécurité: spawn() utilisé + rate limiting activé
 ✅ Ghostscript 10.06.0 détecté
 ✅ LibreOffice LibreOffice 25.8.3.2 8ca8d55c161d602844f5428fa4b58097424e324e détecté

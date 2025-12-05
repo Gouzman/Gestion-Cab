@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileCheck, Plus, X, FileText, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -85,7 +86,7 @@ const AvisJuridiquesManager = ({ clientId, onClose }) => {
     try {
       const nomChemise = `Avis juridiques ${annee} - ${client?.name || 'Client'} (${client?.client_code || ''})`;
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('avis_juridiques_annuels')
         .insert([{
           client_id: clientId,
@@ -109,31 +110,6 @@ const AvisJuridiquesManager = ({ clientId, onClose }) => {
         variant: 'destructive',
         title: 'Erreur',
         description: 'Impossible de créer la chemise d\'avis'
-      });
-    }
-  };
-
-  const handleLierConsultation = async (consultationId, avisId) => {
-    try {
-      const { error } = await supabase
-        .from('cases')
-        .update({ avis_annuel_id: avisId })
-        .eq('id', consultationId);
-
-      if (error) throw error;
-
-      toast({
-        title: '✅ Consultation liée',
-        description: 'La consultation a été ajoutée à la chemise annuelle'
-      });
-
-      fetchAvisAnnuels();
-    } catch (error) {
-      console.error('Erreur liaison consultation:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Erreur',
-        description: 'Impossible de lier la consultation'
       });
     }
   };
@@ -184,7 +160,7 @@ const AvisJuridiquesManager = ({ clientId, onClose }) => {
 
   const anneeActuelle = new Date().getFullYear();
   const anneesDisponibles = [anneeActuelle, anneeActuelle - 1, anneeActuelle - 2];
-  const anneesExistantes = avisAnnuels.map(a => a.annee);
+  const anneesExistantes = new Set(avisAnnuels.map(a => a.annee));
 
   return (
     <motion.div
@@ -220,7 +196,7 @@ const AvisJuridiquesManager = ({ clientId, onClose }) => {
         {/* Boutons création années */}
         <div className="mb-6 flex gap-2">
           {anneesDisponibles.map((annee) => (
-            !anneesExistantes.includes(annee) && (
+            !anneesExistantes.has(annee) && (
               <Button
                 key={annee}
                 onClick={() => handleCreerAvisAnnuel(annee)}
@@ -256,9 +232,10 @@ const AvisJuridiquesManager = ({ clientId, onClose }) => {
                 className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden"
               >
                 {/* En-tête chemise */}
-                <div
+                <button
+                  type="button"
                   onClick={() => toggleYear(avis.annee)}
-                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700/30 transition-colors"
+                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700/30 transition-colors w-full text-left"
                 >
                   <div className="flex items-center gap-3">
                     <FileCheck className="w-5 h-5 text-green-400" />
@@ -279,7 +256,7 @@ const AvisJuridiquesManager = ({ clientId, onClose }) => {
                       <ChevronDown className="w-5 h-5 text-slate-400" />
                     )}
                   </div>
-                </div>
+                </button>
 
                 {/* Consultations */}
                 <AnimatePresence>
@@ -330,6 +307,11 @@ const AvisJuridiquesManager = ({ clientId, onClose }) => {
       </motion.div>
     </motion.div>
   );
+};
+
+AvisJuridiquesManager.propTypes = {
+  clientId: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired
 };
 
 export default AvisJuridiquesManager;

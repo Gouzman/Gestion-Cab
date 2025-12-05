@@ -255,8 +255,17 @@ export const AuthProvider = ({ children }) => {
       if (error || !data?.success) {
         const errorMessages = {
           'password_reused': "Ce mot de passe a déjà été utilisé. Veuillez en choisir un nouveau.",
-          'user_not_found': "Utilisateur introuvable"
+          'user_not_found': "Utilisateur introuvable",
+          'technical_error': data?.message || "Erreur technique lors de la définition des identifiants"
         };
+
+        // Log détaillé de l'erreur pour le debug
+        console.error('❌ [setPersonalCredentials] Erreur:', {
+          error: data?.error || error,
+          message: data?.message,
+          detail: data?.detail,
+          fullData: data
+        });
 
         toast({
           variant: "destructive",

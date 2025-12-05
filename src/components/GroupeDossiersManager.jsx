@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Folder, FolderOpen, Plus, X, FileText, Link } from 'lucide-react';
+import { Folder, FolderOpen, Plus, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -89,7 +90,7 @@ const GroupeDossiersManager = ({ caseId, onClose }) => {
     e.preventDefault();
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('cases')
         .insert([{
           title: `Groupe : ${formData.groupe_name}`,
@@ -241,10 +242,11 @@ const GroupeDossiersManager = ({ caseId, onClose }) => {
               </h4>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="groupe-name" className="block text-sm font-medium text-slate-300 mb-2">
                     Nom de la chemise *
                   </label>
                   <input
+                    id="groupe-name"
                     type="text"
                     value={formData.groupe_name}
                     onChange={(e) => setFormData({ ...formData, groupe_name: e.target.value })}
@@ -254,10 +256,11 @@ const GroupeDossiersManager = ({ caseId, onClose }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="groupe-description" className="block text-sm font-medium text-slate-300 mb-2">
                     Description
                   </label>
                   <textarea
+                    id="groupe-description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white"
@@ -297,8 +300,9 @@ const GroupeDossiersManager = ({ caseId, onClose }) => {
               key={groupe.id}
               className="bg-slate-800/50 border border-slate-700 rounded-lg overflow-hidden"
             >
-              <div 
-                className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700/30 transition-colors"
+              <button
+                type="button"
+                className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700/30 transition-colors w-full text-left"
                 onClick={() => toggleGroupe(groupe.id)}
               >
                 <div className="flex items-center gap-3 flex-1">
@@ -325,7 +329,7 @@ const GroupeDossiersManager = ({ caseId, onClose }) => {
                     </svg>
                   )}
                 </div>
-              </div>
+              </button>
 
               {/* Contenu déroulant */}
               <AnimatePresence>
@@ -434,6 +438,11 @@ const GroupeDossiersManager = ({ caseId, onClose }) => {
       </motion.div>
     </motion.div>
   );
+};
+
+GroupeDossiersManager.propTypes = {
+  caseId: PropTypes.string.isRequired,
+  onClose: PropTypes.func.isRequired
 };
 
 export default GroupeDossiersManager;

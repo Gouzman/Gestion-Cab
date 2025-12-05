@@ -30,19 +30,15 @@ const PdfServiceAlert = () => {
 
   const checkPdfService = async () => {
     try {
-      const pdfServiceUrl = import.meta.env.VITE_PDF_SERVICE_URL || 'https://www.ges-cab.com/pdf';
+      const pdfServiceUrl = import.meta.env.VITE_PDF_SERVICE_URL || 
+        (import.meta.env.PROD ? 'https://www.ges-cab.com/pdf' : 'http://localhost:3001');
       
-      // En production, on considère le service comme disponible par défaut
-      // pour éviter les erreurs 500 lors de la connexion des nouveaux utilisateurs
-      if (import.meta.env.PROD) {
-        setIsServiceRunning(true);
-        setIsChecking(false);
-        return;
-      }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       
       const response = await fetch(`${pdfServiceUrl}/health`, {
         method: 'GET',
-        signal: AbortSignal.timeout(5000),
+        signal: controller.signal,
         mode: 'cors',
         credentials: 'omit',
         headers: {
@@ -50,17 +46,41 @@ const PdfServiceAlert = () => {
         }
       });
       
+      clearTimeout(timeoutId);
+      
       if (response.ok) {
         const data = await response.json();
+        // Considérer 'ok' et 'partial' comme disponibles
         setIsServiceRunning(data.status === 'ok' || data.status === 'partial');
+      } else if (response.status === 500) {
+        // Erreur 500: le serveur répond mais le service a un problème
+        // En production, on affiche un warning mais on considère comme disponible
+        // pour ne pas bloquer l'utilisation de l'application
+        if (import.meta.env.PROD) {
+          console.warn('⚠️ Service PDF indisponible (erreur 500), mode dégradé activé');
+          setIsServiceRunning(true);
+        } else {
+          // En dev, on affiche l'alerte pour avertir le développeur
+          console.error('❌ Service PDF erreur 500');
+          setIsServiceRunning(false);
+        }
       } else {
-        // Ne pas afficher d'alerte en cas d'erreur serveur
-        setIsServiceRunning(true);
+        // Autres erreurs (404, 502, etc.)
+        console.warn('⚠️ Health check échoué:', response.status);
+        setIsServiceRunning(import.meta.env.PROD);
       }
     } catch (error) {
-      // Considérer le service comme disponible en cas d'erreur réseau
-      // pour éviter les faux positifs
-      setIsServiceRunning(true);
+      // Erreur réseau, timeout, ou CORS
+      if (error.name === 'AbortError') {
+        console.warn('⏱️ Timeout lors du health check du service PDF');
+      } else {
+        console.warn('⚠️ Erreur health check:', error.message);
+      }
+      
+      // En production, on considère le service comme disponible
+      // pour éviter de bloquer l'utilisation normale de l'application
+      // Si le service est vraiment KO, l'utilisateur verra l'erreur lors de l'upload
+      setIsServiceRunning(import.meta.env.PROD);
     } finally {
       setIsChecking(false);
     }

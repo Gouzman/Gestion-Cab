@@ -364,9 +364,9 @@ BEGIN
 
   -- 2. Vérifier la réutilisation du mot de passe
   IF EXISTS (
-    SELECT 1 FROM public.password_history
-    WHERE user_id = user_id_var
-    AND password_hash = crypt(new_password, password_hash)
+    SELECT 1 FROM public.password_history ph
+    WHERE ph.user_id = user_id_var
+    AND ph.password_hash = crypt(new_password, ph.password_hash)
   ) THEN
     RETURN json_build_object(
       'success', false,
@@ -385,7 +385,8 @@ BEGIN
     updated_at = NOW()
   WHERE id = user_id_var;
 
-  -- 5. Mettre à jour le profil
+  -- 5. Mettre à jour le profil (PAS de colonne auth_password dans profiles)
+  -- Le mot de passe est stocké dans auth.users.encrypted_password
   UPDATE public.profiles
   SET 
     must_change_password = false,
@@ -418,10 +419,12 @@ BEGIN
 
 EXCEPTION
   WHEN OTHERS THEN
+    -- Retourner le message d'erreur détaillé pour le debug
     RETURN json_build_object(
       'success', false,
       'error', 'technical_error',
-      'message', SQLERRM
+      'message', SQLERRM,
+      'detail', SQLSTATE
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
 import { 
   FileText, 
-  Calendar, 
-  User,
   Clock,
   Scale
 } from 'lucide-react';
@@ -158,6 +157,27 @@ const CaseListItem = ({ case: caseData, clients = [], index, onEdit, onDelete })
       )}
     </motion.div>
   );
+};
+
+CaseListItem.propTypes = {
+  case: PropTypes.shape({
+    id: PropTypes.string,
+    client_id: PropTypes.string,
+    status: PropTypes.string,
+    priority: PropTypes.string,
+    title: PropTypes.string,
+    code_dossier: PropTypes.string,
+    ref_dossier: PropTypes.string,
+    case_type: PropTypes.string,
+    assigned_to: PropTypes.string,
+    created_at: PropTypes.string,
+    attachments: PropTypes.array,
+    next_hearing: PropTypes.string
+  }).isRequired,
+  clients: PropTypes.array,
+  index: PropTypes.number.isRequired,
+  onEdit: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired
 };
 
 export default CaseListItem;

@@ -94,6 +94,8 @@ const FirstLoginScreen = () => {
     setLoading(true);
 
     try {
+      console.log('🔵 [FirstLogin] Définition des identifiants personnels...');
+      
       const { error } = await setPersonalCredentials(
         user.email,
         newPassword,
@@ -102,15 +104,18 @@ const FirstLoginScreen = () => {
       );
 
       if (error) {
+        console.error('❌ [FirstLogin] Erreur lors de la définition des identifiants:', error);
         setLoading(false);
         return;
       }
 
+      console.log('✅ [FirstLogin] Identifiants définis avec succès');
       // La connexion automatique est gérée dans setPersonalCredentials
       // L'utilisateur sera redirigé vers le dashboard par App.jsx
+      // On ne met pas loading à false car on va être redirigé
 
     } catch (error) {
-      console.error("Erreur handleFinalSubmit:", error);
+      console.error("❌ [FirstLogin] Erreur handleFinalSubmit:", error);
       toast({
         variant: "destructive",
         title: "❌ Erreur",

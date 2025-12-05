@@ -221,7 +221,7 @@ import React, { useState, useEffect, useMemo } from 'react';
             name: name
           });
           
-          const downloadUrl = window.URL.createObjectURL(blob);
+          const downloadUrl = globalThis.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = downloadUrl;
           // Nettoyer le nom du fichier lors du téléchargement
@@ -232,8 +232,8 @@ import React, { useState, useEffect, useMemo } from 'react';
           
           document.body.appendChild(a);
           a.click();
-          window.URL.revokeObjectURL(downloadUrl);
-          document.body.removeChild(a);
+          globalThis.URL.revokeObjectURL(downloadUrl);
+          a.remove();
         } catch (error) {
           console.error('❌ Erreur lors du téléchargement:', error);
           toast({ 
@@ -245,7 +245,7 @@ import React, { useState, useEffect, useMemo } from 'react';
       };
 
       const handlePreview = (url) => {
-        if (url && url.startsWith('http')) {
+        if (url?.startsWith('http')) {
           // Forcer l'aperçu en ajoutant le paramètre download vide
           const previewUrl = url.includes('?') 
             ? `${url}&download=` 
@@ -333,28 +333,28 @@ import React, { useState, useEffect, useMemo } from 'react';
         const counts = { all: documents.length };
         
         // Initialiser tous les compteurs à 0
-        categories.forEach(cat => {
+        for (const cat of categories) {
           if (cat.id !== 'all') {
             counts[cat.id] = 0;
           }
-        });
+        }
         
         // Compter les documents par catégorie
-        documents.forEach(doc => {
+        for (const doc of documents) {
           if (doc.category) {
             counts[doc.category] = (counts[doc.category] || 0) + 1;
           } else {
             // Documents sans catégorie vont dans "Autres"
             counts['Autres'] = (counts['Autres'] || 0) + 1;
           }
-        });
+        }
         
         return counts;
       }, [documents, categories]);
 
       const filteredDocuments = documents.filter(doc => {
-        const matchesSearch = (doc.name && doc.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (doc.taskTitle && doc.taskTitle.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchesSearch = doc.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          doc.taskTitle?.toLowerCase().includes(searchTerm.toLowerCase());
         
         if (selectedCategory === 'all') return matchesSearch;
         
@@ -379,8 +379,6 @@ import React, { useState, useEffect, useMemo } from 'react';
         acc[taskKey].files.push(doc);
         return acc;
       }, {});
-
-      const taskGroups = Object.values(documentsByTask);
 
       return (
         <div className="space-y-6">
@@ -490,13 +488,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 
                     // Récupérer la référence du dossier
                     const getCaseReference = () => {
-                      if (doc.caseTitle) {
-                        return doc.caseTitle;
-                      }
-                      if (doc.taskId) {
-                        return doc.taskTitle; // Afficher le nom de la tâche
-                      }
-                      return 'Sans dossier';
+                      return doc.caseTitle || doc.taskTitle || 'Sans dossier';
                     };
 
                     return (
@@ -607,7 +599,7 @@ import React, { useState, useEffect, useMemo } from 'react';
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              if (window.confirm(`Voulez-vous vraiment supprimer le document "${doc.name}" ?\n\nCette action est irréversible.`)) {
+                              if (globalThis.confirm(`Voulez-vous vraiment supprimer le document "${doc.name}" ?\n\nCette action est irréversible.`)) {
                                 handleDelete(doc);
                               }
                             }} 
@@ -644,12 +636,20 @@ import React, { useState, useEffect, useMemo } from 'react';
               }}
               onTransferred={() => {
                 // Recharger les documents pour afficher les changements
-                window.location.reload();
+                globalThis.location.reload();
               }}
             />
           )}
         </div>
       );
+    };
+
+    DocumentManager.propTypes = {
+      currentUser: PropTypes.shape({
+        id: PropTypes.string,
+        function: PropTypes.string,
+        role: PropTypes.string
+      }).isRequired
     };
 
     export default DocumentManager;

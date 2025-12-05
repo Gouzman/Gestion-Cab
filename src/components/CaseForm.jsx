@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
 import { X, FileText, User, Calendar, Paperclip, Eye, Users, Building, Scale } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,13 +8,13 @@ import { supabase } from '@/lib/customSupabaseClient';
 
 const formatCurrency = (value) => {
   if (!value) return '';
-  const numberValue = Number(String(value).replace(/[^0-9]/g, ''));
+  const numberValue = Number(String(value).replaceAll(/\D/g, ''));
   return new Intl.NumberFormat('fr-FR').format(numberValue);
 };
 
 const parseCurrency = (value) => {
   if (!value) return 0;
-  return Number(String(value).replace(/[^0-9]/g, ''));
+  return Number(String(value).replaceAll(/\D/g, ''));
 };
 
 const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
@@ -127,7 +128,7 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
     } else {
       setFormData(prev => ({
         ...prev,
-        [name]: type === 'number' ? (parseFloat(value) || 0) : value
+        [name]: type === 'number' ? (Number.parseFloat(value) || 0) : value
       }));
     }
   };
@@ -142,7 +143,7 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
   };
 
   const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
+    if (e.target.files?.[0]) {
       const file = e.target.files[0];
       setFormData(prev => ({
         ...prev,
@@ -185,7 +186,7 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* 1. Id dossier (id_dossier - non modifiable, généré automatiquement en base) */}
-          {caseData && caseData.id_dossier && (
+          {caseData?.id_dossier && (
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 <FileText className="w-4 h-4 inline mr-2" />
@@ -274,11 +275,11 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
 
           {/* 5. Qualité du client (personne physique / morale) */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label htmlFor="qualite-client" className="block text-sm font-medium text-slate-300 mb-2">
               <Building className="w-4 h-4 inline mr-2" />
               Qualité du client *
             </label>
-            <div className="flex gap-4">
+            <div id="qualite-client" className="flex gap-4">
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="radio"
@@ -306,10 +307,11 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
 
           {/* 6. Type de diligence */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label htmlFor="type-diligence" className="block text-sm font-medium text-slate-300 mb-2">
               Type de diligence
             </label>
             <select
+              id="type-diligence"
               name="type_de_diligence"
               value={formData.type_de_diligence}
               onChange={handleChange}
@@ -328,10 +330,11 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
 
           {/* 7. Objet du dossier */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label htmlFor="objet-dossier" className="block text-sm font-medium text-slate-300 mb-2">
               Objet du dossier
             </label>
             <input
+              id="objet-dossier"
               type="text"
               name="objet_du_dossier"
               value={formData.objet_du_dossier}
@@ -361,10 +364,11 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label htmlFor="case-description" className="block text-sm font-medium text-slate-300 mb-2">
               Description
             </label>
             <textarea
+              id="case-description"
               name="description"
               value={formData.description}
               onChange={handleChange}
@@ -516,10 +520,11 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
           {/* Statut et Priorité */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="case-status" className="block text-sm font-medium text-slate-300 mb-2">
                 Statut
               </label>
               <select
+                id="case-status"
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
@@ -532,10 +537,11 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="case-priority" className="block text-sm font-medium text-slate-300 mb-2">
                 Priorité
               </label>
               <select
+                id="case-priority"
                 name="priority"
                 value={formData.priority}
                 onChange={handleChange}
@@ -551,11 +557,12 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
 
           {/* Honoraire */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label htmlFor="case-honoraire" className="block text-sm font-medium text-slate-300 mb-2">
               Honoraire
             </label>
             <div className="relative">
               <input
+                id="case-honoraire"
                 type="text"
                 name="honoraire"
                 value={formData.honoraire}
@@ -640,7 +647,7 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
             </p>
             <div className="mt-3 space-y-2">
               {formData.attachments.map((name, index) => (
-                <div key={index} className="text-sm text-slate-300 bg-slate-700/30 p-2 rounded-md flex items-center gap-2">
+                <div key={`${name}-${index}`} className="text-sm text-slate-300 bg-slate-700/30 p-2 rounded-md flex items-center gap-2">
                   <FileText className="w-4 h-4 text-blue-400" />
                   {name}
                 </div>
@@ -650,10 +657,11 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label htmlFor="case-notes" className="block text-sm font-medium text-slate-300 mb-2">
               Notes
             </label>
             <textarea
+              id="case-notes"
               name="notes"
               value={formData.notes}
               onChange={handleChange}
@@ -683,6 +691,39 @@ const CaseForm = ({ case: caseData, onSubmit, onCancel, currentUser }) => {
       </motion.div>
     </motion.div>
   );
+};
+
+CaseForm.propTypes = {
+  case: PropTypes.shape({
+    id_dossier: PropTypes.string,
+    title: PropTypes.string,
+    code_dossier: PropTypes.string,
+    case_type: PropTypes.string,
+    client_id: PropTypes.string,
+    objet_du_dossier: PropTypes.string,
+    type_de_diligence: PropTypes.string,
+    qualite_du_client: PropTypes.string,
+    opposing_party: PropTypes.string,
+    assigned_to: PropTypes.string,
+    next_hearing: PropTypes.string,
+    description: PropTypes.string,
+    status: PropTypes.string,
+    priority: PropTypes.string,
+    honoraire: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    notes: PropTypes.string,
+    attachments: PropTypes.arrayOf(PropTypes.string),
+    visible_to: PropTypes.arrayOf(PropTypes.string),
+    juridiction: PropTypes.string,
+    numero_rg: PropTypes.string,
+    type_procedure: PropTypes.string,
+    avocat_adverse: PropTypes.string,
+    numero_cabinet_instruction: PropTypes.string
+  }),
+  onSubmit: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
+  currentUser: PropTypes.shape({
+    id: PropTypes.string.isRequired
+  }).isRequired
 };
 
 export default CaseForm;

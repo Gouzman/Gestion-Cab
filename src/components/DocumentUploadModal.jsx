@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
 import { X, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -144,7 +145,7 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
       // Lire le fichier comme ArrayBuffer pour un upload propre
       const fileBuffer = await formData.file.arrayBuffer();
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('attachments')
         .upload(filePath, fileBuffer, {
           cacheControl: '3600',
@@ -261,11 +262,13 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Zone de drag & drop */}
-          <div
+          <button
+            type="button"
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors w-full ${
               isDragging 
                 ? 'border-indigo-500 bg-indigo-500/10' 
                 : 'border-slate-600 bg-slate-700/30'
@@ -290,7 +293,7 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
                 ✓ {formData.file.name}
               </p>
             )}
-          </div>
+          </button>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Réf. Document (manuel) */}
@@ -400,6 +403,14 @@ const DocumentUploadModal = ({ currentUser, onCancel, onDocumentUploaded }) => {
       </motion.div>
     </motion.div>
   );
+};
+
+DocumentUploadModal.propTypes = {
+  currentUser: PropTypes.shape({
+    id: PropTypes.string
+  }).isRequired,
+  onCancel: PropTypes.func.isRequired,
+  onDocumentUploaded: PropTypes.func.isRequired
 };
 
 export default DocumentUploadModal;

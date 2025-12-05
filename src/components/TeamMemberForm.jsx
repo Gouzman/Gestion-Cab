@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { motion } from 'framer-motion';
 import { X, User, Mail, ShieldCheck, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -166,6 +167,17 @@ const TeamMemberForm = ({ member, onSubmit, onCancel }) => {
       </motion.div>
     </motion.div>
   );
+};
+
+TeamMemberForm.propTypes = {
+  member: PropTypes.shape({
+    name: PropTypes.string,
+    function: PropTypes.string,
+    email: PropTypes.string,
+    role: PropTypes.string
+  }),
+  onSubmit: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired
 };
 
 export default TeamMemberForm;

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserPlus, Save, Users, Shield, Copy, CheckCircle2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -291,6 +292,10 @@ const UserCreator = ({ onClose }) => {
       </AnimatePresence>
     </motion.div>
   );
+};
+
+UserCreator.propTypes = {
+  onClose: PropTypes.func.isRequired
 };
 
 export default UserCreator;

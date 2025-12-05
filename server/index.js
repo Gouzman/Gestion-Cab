@@ -76,7 +76,7 @@ app.use(cors({
     }
   },
   methods: ['POST', 'GET', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Cache-Control'],
   credentials: false // Pas de credentials pour éviter les complications CORS
 }));
 
