@@ -1,15 +1,28 @@
+/**
+ * ============================================
+ * Composant : PasswordResetManager (REFACTORISÉ)
+ * ============================================
+ * Interface admin pour gérer les demandes de réinitialisation
+ * - Affiche toutes les demandes (pending, approved, rejected)
+ * - Permet d'approuver ou rejeter les demandes
+ * - Utilise les RPC functions du contexte InternalAuth
+ */
+
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { motion } from 'framer-motion';
-import { Shield, Check, X, Clock, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Shield, Check, X, Clock, AlertCircle, User, Mail, Award, Calendar, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useAuth } from '@/contexts/InternalAuthContext';
 
-const PasswordResetManager = ({ currentUser }) => {
+const PasswordResetManager = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState(null);
   const { toast } = useToast();
+  const { approveResetRequest, rejectResetRequest } = useAuth();
 
   useEffect(() => {
     fetchRequests();
@@ -17,88 +30,84 @@ const PasswordResetManager = ({ currentUser }) => {
 
   const fetchRequests = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('password_reset_requests')
-      .select('*')
-      .order('requested_at', { ascending: false });
+    
+    console.log('🔍 [PasswordResetManager] Chargement des demandes...');
+    
+    try {
+      const { data, error } = await supabase
+        .from('password_reset_requests')
+        .select('*')
+        .order('requested_at', { ascending: false });
 
-    if (error) {
-      console.error('Erreur chargement demandes:', error);
+      console.log('📊 [PasswordResetManager] Résultat:', { data, error });
+
+      if (error) {
+        // Table n'existe pas
+        if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
+          console.warn('⚠️ [PasswordResetManager] Table password_reset_requests non disponible');
+          toast({
+            title: "⚠️ Configuration requise",
+            description: "Le système de réinitialisation n'est pas encore configuré. Veuillez exécuter le script SQL.",
+            duration: 10000,
+          });
+        } else {
+          console.error('❌ [PasswordResetManager] Erreur chargement demandes:', error);
+          toast({
+            variant: "destructive",
+            title: "Erreur",
+            description: `Impossible de charger les demandes: ${error.message}`
+          });
+        }
+        setRequests([]);
+      } else {
+        console.log('✅ [PasswordResetManager] Demandes chargées:', data?.length || 0);
+        setRequests(data || []);
+        
+        // Notification si des demandes en attente
+        const pendingCount = data?.filter(r => r.status === 'pending').length || 0;
+        if (pendingCount > 0) {
+          console.log('⚠️ [PasswordResetManager] Demandes en attente:', pendingCount);
+          toast({
+            title: "🔔 Nouvelles demandes",
+            description: `${pendingCount} demande(s) de réinitialisation en attente`,
+            duration: 8000,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ [PasswordResetManager] Erreur:', error);
       toast({
         variant: "destructive",
-        title: "Erreur",
-        description: "Impossible de charger les demandes de réinitialisation."
+        title: "Erreur réseau",
+        description: "Impossible de se connecter à la base de données."
       });
-    } else {
-      setRequests(data || []);
+      setRequests([]);
     }
+    
     setLoading(false);
   };
 
-  const handleApprove = async (requestId, userEmail) => {
-    try {
-      // 1. Marquer la demande comme approuvée
-      const { error: updateError } = await supabase
-        .from('password_reset_requests')
-        .update({
-          status: 'approved',
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: currentUser.id
-        })
-        .eq('id', requestId);
+  const handleApprove = async (requestId) => {
+    setProcessingId(requestId);
 
-      if (updateError) throw updateError;
+    const { error } = await approveResetRequest(requestId);
 
-      // 2. Réinitialiser password_set à false pour forcer la création d'un nouveau mot de passe
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ password_set: false })
-        .eq('email', userEmail);
+    setProcessingId(null);
 
-      if (profileError) throw profileError;
-
-      toast({
-        title: "✅ Demande approuvée",
-        description: `L'utilisateur ${userEmail} pourra définir un nouveau mot de passe lors de sa prochaine connexion.`
-      });
-
+    if (!error) {
       fetchRequests();
-    } catch (error) {
-      console.error('Erreur approbation:', error);
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible d'approuver la demande."
-      });
     }
   };
 
   const handleReject = async (requestId) => {
-    try {
-      const { error } = await supabase
-        .from('password_reset_requests')
-        .update({
-          status: 'rejected',
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: currentUser.id
-        })
-        .eq('id', requestId);
+    setProcessingId(requestId);
 
-      if (error) throw error;
+    const { error } = await rejectResetRequest(requestId);
 
-      toast({
-        title: "❌ Demande rejetée",
-        description: "La demande a été rejetée."
-      });
+    setProcessingId(null);
 
+    if (!error) {
       fetchRequests();
-    } catch (error) {
-      console.error('Erreur rejet:', error);
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible de rejeter la demande."
-      });
     }
   };
 
@@ -160,49 +169,102 @@ const PasswordResetManager = ({ currentUser }) => {
             <Clock className="w-5 h-5 text-yellow-400" />
             Demandes en attente
           </h3>
-          {pendingRequests.map((request, index) => (
-            <motion.div
-              key={request.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Shield className="w-5 h-5 text-blue-400" />
-                    <h4 className="text-lg font-semibold text-white">{request.email}</h4>
+          <AnimatePresence>
+            {pendingRequests.map((request, index) => (
+              <motion.div
+                key={request.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -100 }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6 hover:border-blue-500/50 transition-colors"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                  <div className="flex-1 space-y-3">
+                    {/* Nom complet */}
+                    <div className="flex items-center gap-3">
+                      <User className="w-5 h-5 text-blue-400 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium">Nom complet</p>
+                        <p className="text-lg font-semibold text-white">{request.user_name}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Email */}
+                    <div className="flex items-center gap-3">
+                      <Mail className="w-5 h-5 text-green-400 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium">Email</p>
+                        <p className="text-white">{request.user_email}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Titre/Fonction */}
+                    {request.user_title && (
+                      <div className="flex items-center gap-3">
+                        <Award className="w-5 h-5 text-purple-400 flex-shrink-0" />
+                        <div>
+                          <p className="text-xs text-slate-500 font-medium">Titre d'accréditation</p>
+                          <p className="text-white">{request.user_title}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Date de demande */}
+                    <div className="flex items-center gap-3">
+                      <Calendar className="w-5 h-5 text-yellow-400 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium">Date de demande</p>
+                        <p className="text-slate-300 text-sm">
+                          {new Date(request.requested_at).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Tentatives échouées */}
+                    <div className="flex items-center gap-3">
+                      <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium">Tentatives échouées</p>
+                        <p className="text-red-300 text-sm font-semibold">{request.failed_attempts}/3</p>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-slate-400 text-sm">
-                    Demandé le {new Date(request.requested_at).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </p>
+                  
+                  {/* Boutons d'action */}
+                  <div className="flex lg:flex-col gap-2 lg:min-w-[140px]">
+                    <Button
+                      onClick={() => handleApprove(request.id)}
+                      disabled={processingId === request.id}
+                      className="flex-1 lg:w-full bg-green-500 hover:bg-green-600 text-white disabled:opacity-50"
+                    >
+                      {processingId === request.id ? (
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Check className="w-4 h-4 mr-2" />
+                      )}
+                      Approuver
+                    </Button>
+                    <Button
+                      onClick={() => handleReject(request.id)}
+                      disabled={processingId === request.id}
+                      variant="destructive"
+                      className="flex-1 lg:w-full"
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Rejeter
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => handleApprove(request.id, request.email)}
-                    className="bg-green-500 hover:bg-green-600 text-white"
-                  >
-                    <Check className="w-4 h-4 mr-2" />
-                    Approuver
-                  </Button>
-                  <Button
-                    onClick={() => handleReject(request.id)}
-                    variant="destructive"
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Rejeter
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
 
@@ -243,14 +305,6 @@ const PasswordResetManager = ({ currentUser }) => {
       )}
     </div>
   );
-};
-
-PasswordResetManager.propTypes = {
-  currentUser: PropTypes.shape({
-    id: PropTypes.string,
-    name: PropTypes.string,
-    email: PropTypes.string,
-  })
 };
 
 export default PasswordResetManager;

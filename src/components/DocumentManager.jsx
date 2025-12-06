@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+    import PropTypes from 'prop-types';
     import { motion } from 'framer-motion';
     import { FileArchive, Search, Eye, Trash2, Download, Upload, FolderOpen, FileText, Folder, Share2 } from 'lucide-react';
     import { Button } from '@/components/ui/button';

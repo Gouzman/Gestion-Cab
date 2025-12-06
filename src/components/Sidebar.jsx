@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCompanyInfo } from '@/lib/appSettings';
+import PasswordResetNotificationBadge from '@/components/PasswordResetNotificationBadge';
 
 const Sidebar = ({ activeView, setActiveView, currentUser, onLogout }) => {
   const { companyInfo } = useCompanyInfo();
@@ -111,7 +112,8 @@ const Sidebar = ({ activeView, setActiveView, currentUser, onLogout }) => {
             onClick={() => setActiveView(settingsItem.id)}
           >
             <settingsItem.icon className="w-5 h-5" />
-            {settingsItem.label}
+            <span className="flex-1 text-left">{settingsItem.label}</span>
+            <PasswordResetNotificationBadge />
           </Button>
         )}
 

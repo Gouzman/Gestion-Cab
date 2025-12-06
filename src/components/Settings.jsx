@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Tag, Save, Plus, Trash2, Shield, History, Building2, Menu as MenuIcon, Tags, Palette } from 'lucide-react';
+import { Tag, Save, Plus, Trash2, Shield, History, Building2, Menu as MenuIcon, Tags, Palette, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -12,6 +12,7 @@ import MenuConfigSettings from '@/components/MenuConfigSettings';
 import CategoriesConfigSettings from '@/components/CategoriesConfigSettings';
 import MenuPermissionsManager from '@/components/MenuPermissionsManager';
 import AppearanceSettings from '@/components/AppearanceSettings';
+import PasswordResetManager from '@/components/PasswordResetManager';
 
 
 
@@ -205,6 +206,20 @@ const Settings = () => {
             </button>
           )}
           
+          {isGerantOrAdmin && (
+            <button
+              onClick={() => setActiveTab('password-resets')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'password-resets'
+                  ? 'border-yellow-500 text-yellow-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-300'
+              }`}
+            >
+              <KeyRound className="w-4 h-4 inline mr-2" />
+              Réinitialisations
+            </button>
+          )}
+          
           <button
             onClick={() => setActiveTab('categories')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
@@ -259,6 +274,12 @@ const Settings = () => {
       {activeTab === 'admin' && isAdmin && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
           <AdminUserHistory />
+        </motion.div>
+      )}
+
+      {activeTab === 'password-resets' && isGerantOrAdmin && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 rounded-xl p-6">
+          <PasswordResetManager />
         </motion.div>
       )}
 

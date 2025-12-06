@@ -60,14 +60,6 @@ BEGIN
     updated_at = NOW()
   WHERE id = user_id_var;
 
-  -- 5. Mettre à jour le profil (y compris auth_password pour internal_login)
-  UPDATE public.profiles
-  SET 
-    auth_password = password_hash,
-    must_change_password = false,
-    has_custom_password = true,
-    last_password_change = NOW(),
-    password_change_count = COALESCE(password_change_count, 0) + 1
   -- 5. Mettre à jour le profil (PAS de colonne auth_password dans profiles)
   -- Le mot de passe est stocké dans auth.users.encrypted_password
   UPDATE public.profiles
@@ -76,7 +68,15 @@ BEGIN
     has_custom_password = true,
     last_password_change = NOW(),
     password_change_count = COALESCE(password_change_count, 0) + 1
-  WHERE id = user_id_var;WER(TRIM(secret_answer)), gen_salt('bf'));
+  WHERE id = user_id_var;
+
+  -- 6. Sauvegarder dans l'historique
+  INSERT INTO public.password_history (user_id, password_hash)
+  VALUES (user_id_var, password_hash);
+
+  -- 7. Encoder la question et hasher la réponse
+  question_encoded := encode(secret_question::bytea, 'base64');
+  answer_hash := crypt(LOWER(TRIM(secret_answer)), gen_salt('bf'));
 
   -- 8. Sauvegarder la phrase secrète
   INSERT INTO public.user_secret_phrases (user_id, question_encrypted, answer_hash)
@@ -107,8 +107,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION public.internal_set_personal_credentials TO authenticated;
 GRANT EXECUTE ON FUNCTION public.internal_set_personal_credentials TO anon;
 
--- 5. Vérification
+-- 2. Vérification
 SELECT 
-  'Colonne auth_password ajoutée' as etape_1,
-  'Fonction internal_set_personal_credentials corrigée' as etape_2,
-  'Système prêt pour la première connexion' as statut;
+  'Fonction internal_set_personal_credentials corrigée ✅' as etape_1,
+  'Mot de passe stocké dans auth.users.encrypted_password ✅' as etape_2,
+  'Système prêt pour la première connexion ✅' as statut;

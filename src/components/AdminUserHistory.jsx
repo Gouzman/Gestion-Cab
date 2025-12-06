@@ -24,26 +24,18 @@ const AdminUserHistory = () => {
   const fetchUserHistory = async () => {
     setLoading(true);
     try {
-      // Récupérer les données des utilisateurs depuis Supabase Auth
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) {
-        throw new Error(`Erreur Auth: ${authError.message}`);
-      }
-
-      // Récupérer les données utilisateurs de notre table profiles
+      // Récupérer les données utilisateurs depuis la table profiles
       const { data: customUsers, error: customError } = await supabase
         .from('profiles')
-        .select('id, email, name, role, "function", created_at, updated_at');
+        .select('id, email, name, role, "function", created_at, updated_at, must_change_password')
+        .order('created_at', { ascending: false });
 
       if (customError) {
         throw new Error(`Erreur données: ${customError.message}`);
       }
 
-      // Combiner les données
+      // Construire l'historique avec les données disponibles
       const combinedHistory = customUsers.map(customUser => {
-        const authUser = authUsers.users.find(au => au.email === customUser.email);
-        
         return {
           id: customUser.id,
           email: customUser.email,
@@ -52,20 +44,13 @@ const AdminUserHistory = () => {
           function: customUser.function || 'Non définie',
           created_at: customUser.created_at,
           updated_at: customUser.updated_at,
-          isFirstLogin: false, // Colonne n'existe pas encore
-          // Données d'authentification
-          auth_id: authUser?.id || null,
-          last_sign_in_at: authUser?.last_sign_in_at || null,
-          email_confirmed_at: authUser?.email_confirmed_at || null,
-          password_updated_at: authUser?.user_metadata?.password_updated_at || null,
-          // Masquer le mot de passe pour le gérant
-          password_hash: (() => {
-            if (customUser.role === 'gerant' || customUser.function === 'Gerant') {
-              return '*** MASQUÉ POUR SÉCURITÉ ***';
-            }
-            return authUser?.encrypted_password ? 'Mot de passe hashé (bcrypt)' : 'Non défini';
-          })(),
-          is_password_hashed: Boolean(authUser?.encrypted_password)
+          last_login: customUser.updated_at,
+          must_change_password: customUser.must_change_password || false,
+          // Informations de sécurité (pas de hash exposé)
+          password_hash: customUser.role === 'gerant' || customUser.function === 'Gerant' 
+            ? '*** MASQUÉ POUR SÉCURITÉ ***' 
+            : 'Mot de passe hashé (bcrypt)',
+          is_password_hashed: true
         };
       });
 
@@ -188,9 +173,9 @@ const AdminUserHistory = () => {
           <div className="flex items-center gap-3">
             <Key className="w-8 h-8 text-yellow-400" />
             <div>
-              <p className="text-sm text-slate-400">Première Connexion</p>
+              <p className="text-sm text-slate-400">Changement MDP requis</p>
               <p className="text-2xl font-bold text-white">
-                0
+                {userHistory.filter(u => u.must_change_password).length}
               </p>
             </div>
           </div>
@@ -275,17 +260,17 @@ const AdminUserHistory = () => {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-slate-400">Dernière connexion:</span>
-                      <span className="text-slate-300">{formatDate(user.last_sign_in_at)}</span>
+                      <span className="text-slate-300">{formatDate(user.last_login)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Email confirmé:</span>
-                      <span className={user.email_confirmed_at ? "text-green-300" : "text-red-300"}>
-                        {user.email_confirmed_at ? formatDate(user.email_confirmed_at) : 'Non confirmé'}
+                      <span className="text-slate-400">Changement MDP requis:</span>
+                      <span className={user.must_change_password ? "text-amber-300" : "text-green-300"}>
+                        {user.must_change_password ? 'Oui - Au prochain login' : 'Non'}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">MDP mis à jour:</span>
-                      <span className="text-slate-300">{formatDate(user.password_updated_at)}</span>
+                      <span className="text-slate-400">Statut du compte:</span>
+                      <span className="text-green-300">Actif</span>
                     </div>
                   </div>
 

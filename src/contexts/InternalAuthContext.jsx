@@ -311,7 +311,7 @@ export const AuthProvider = ({ children }) => {
   // ============================================
   const getSecretQuestion = useCallback(async (identifier) => {
     try {
-      const { data, error } = await supabase.rpc('get_secret_question', {
+      const { data, error } = await supabase.rpc('get_user_secret_question', {
         user_identifier: identifier
       });
 
@@ -327,10 +327,10 @@ export const AuthProvider = ({ children }) => {
           description: errorMessages[data?.error] || "Impossible de récupérer la question secrète",
         });
 
-        return { error: data?.error || error, question: null };
+        return { error: data?.error || error, question: null, userEmail: null };
       }
 
-      return { error: null, question: data.question, userId: data.user_id };
+      return { error: null, question: data.question, userEmail: data.user_email };
 
     } catch (error) {
       console.error("Erreur getSecretQuestion:", error);
@@ -339,9 +339,43 @@ export const AuthProvider = ({ children }) => {
         title: "Erreur",
         description: "Une erreur inattendue est survenue.",
       });
-      return { error, question: null };
+      return { error, question: null, userEmail: null };
     }
   }, [toast]);
+
+  // ============================================
+  // VÉRIFIER LA RÉPONSE SECRÈTE (sans réinitialisation)
+  // ============================================
+  const verifySecretAnswer = useCallback(async (identifier, answer) => {
+    try {
+      const { data, error } = await supabase.rpc('verify_secret_answer', {
+        user_identifier: identifier,
+        user_answer: answer
+      });
+
+      if (error || !data?.success) {
+        return { 
+          success: false, 
+          error: data?.error || 'technical_error',
+          userId: null 
+        };
+      }
+
+      return { 
+        success: true, 
+        error: null,
+        userId: data.user_id 
+      };
+
+    } catch (error) {
+      console.error("Erreur verifySecretAnswer:", error);
+      return { 
+        success: false, 
+        error: 'technical_error',
+        userId: null 
+      };
+    }
+  }, []);
 
   // ============================================
   // RÉINITIALISER LE MOT DE PASSE AVEC PHRASE SECRÈTE
@@ -389,6 +423,145 @@ export const AuthProvider = ({ children }) => {
     }
   }, [toast]);
 
+  // ============================================
+  // CRÉER UNE DEMANDE DE RÉINITIALISATION
+  // ============================================
+  const createResetRequest = useCallback(async (identifier) => {
+    try {
+      const { data, error } = await supabase.rpc('create_reset_request', {
+        user_identifier: identifier
+      });
+
+      if (error || !data?.success) {
+        const errorMessages = {
+          'user_not_found': "Utilisateur introuvable",
+          'already_pending': "Une demande est déjà en cours de traitement"
+        };
+
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: errorMessages[data?.error] || "Impossible de créer la demande",
+        });
+
+        return { error: data?.error || error, requestId: null };
+      }
+
+      if (data.error === 'already_pending') {
+        toast({
+          title: "⏳ Demande en attente",
+          description: "Une demande de réinitialisation est déjà en cours de traitement par un administrateur.",
+          duration: 6000,
+        });
+        return { error: null, requestId: data.request_id, alreadyPending: true };
+      }
+
+      toast({
+        title: "✅ Demande envoyée",
+        description: "Un administrateur va traiter votre demande de réinitialisation.",
+        duration: 6000,
+      });
+
+      return { error: null, requestId: data.request_id, alreadyPending: false };
+
+    } catch (error) {
+      console.error("Erreur createResetRequest:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Une erreur inattendue est survenue.",
+      });
+      return { error, requestId: null };
+    }
+  }, [toast]);
+
+  // ============================================
+  // APPROUVER UNE DEMANDE DE RÉINITIALISATION (Admin)
+  // ============================================
+  const approveResetRequest = useCallback(async (requestId) => {
+    try {
+      const { data, error } = await supabase.rpc('approve_reset_request', {
+        request_id_param: requestId,
+        admin_user_id: user?.id
+      });
+
+      if (error || !data?.success) {
+        const errorMessages = {
+          'unauthorized': "Vous n'êtes pas autorisé à effectuer cette action",
+          'request_not_found': "Demande introuvable"
+        };
+
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: errorMessages[data?.error] || "Impossible d'approuver la demande",
+        });
+
+        return { error: data?.error || error };
+      }
+
+      toast({
+        title: "✅ Demande approuvée",
+        description: `L'utilisateur ${data.user_email} pourra définir un nouveau mot de passe lors de sa prochaine connexion.`,
+        duration: 6000,
+      });
+
+      return { error: null, userEmail: data.user_email };
+
+    } catch (error) {
+      console.error("Erreur approveResetRequest:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Une erreur inattendue est survenue.",
+      });
+      return { error };
+    }
+  }, [toast, user]);
+
+  // ============================================
+  // REJETER UNE DEMANDE DE RÉINITIALISATION (Admin)
+  // ============================================
+  const rejectResetRequest = useCallback(async (requestId) => {
+    try {
+      const { data, error } = await supabase.rpc('reject_reset_request', {
+        request_id_param: requestId,
+        admin_user_id: user?.id
+      });
+
+      if (error || !data?.success) {
+        const errorMessages = {
+          'unauthorized': "Vous n'êtes pas autorisé à effectuer cette action",
+          'request_not_found': "Demande introuvable"
+        };
+
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: errorMessages[data?.error] || "Impossible de rejeter la demande",
+        });
+
+        return { error: data?.error || error };
+      }
+
+      toast({
+        title: "❌ Demande rejetée",
+        description: "La demande de réinitialisation a été rejetée.",
+      });
+
+      return { error: null };
+
+    } catch (error) {
+      console.error("Erreur rejectResetRequest:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Une erreur inattendue est survenue.",
+      });
+      return { error };
+    }
+  }, [toast, user]);
+
   const value = useMemo(() => ({
     user,
     session,
@@ -398,7 +571,11 @@ export const AuthProvider = ({ children }) => {
     signOut,
     setPersonalCredentials,
     getSecretQuestion,
+    verifySecretAnswer,
     resetPasswordWithSecretPhrase,
+    createResetRequest,
+    approveResetRequest,
+    rejectResetRequest,
   }), [
     user, 
     session, 
@@ -408,7 +585,11 @@ export const AuthProvider = ({ children }) => {
     signOut, 
     setPersonalCredentials,
     getSecretQuestion,
-    resetPasswordWithSecretPhrase
+    verifySecretAnswer,
+    resetPasswordWithSecretPhrase,
+    createResetRequest,
+    approveResetRequest,
+    rejectResetRequest
   ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
